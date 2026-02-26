@@ -35,7 +35,11 @@ import { CSS } from "@dnd-kit/utilities";
 const MODERATOR_ROLE_ID = "1473075468088377349";
 const MANAGER_ROLE_ID = "1473075468088377350";
 const OWNER_ROLE_ID = "1473075468088377352";
-const UPLOAD_ROLES = new Set([MODERATOR_ROLE_ID, MANAGER_ROLE_ID, OWNER_ROLE_ID]);
+const UPLOAD_ROLES = new Set([
+  MODERATOR_ROLE_ID,
+  MANAGER_ROLE_ID,
+  OWNER_ROLE_ID,
+]);
 
 // ─── Interfaces
 interface Sound {
@@ -72,7 +76,7 @@ const itemVariants = {
   show: { opacity: 1, scale: 1 },
 };
 
-// ─── Draggable sound card
+// ─── Draggable sound card (compact horizontal layout)
 function DraggableSoundCard({
   sound,
   playing,
@@ -97,7 +101,9 @@ function DraggableSoundCard({
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id: sound.id, data: { sound } });
 
-  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined;
+  const style = transform
+    ? { transform: CSS.Translate.toString(transform) }
+    : undefined;
 
   return (
     <motion.div
@@ -105,120 +111,160 @@ function DraggableSoundCard({
       style={style}
       variants={itemVariants}
       layout={!overlay}
-      whileHover={!isDragging ? { y: -4 } : undefined}
+      whileHover={!isDragging ? { y: -2, scale: 1.01 } : undefined}
       transition={{ type: "spring", stiffness: 300 }}
       className={isDragging && !overlay ? "opacity-40" : undefined}
     >
       <Card
-        className={`h-full ${designTokens.cards.elevated} hover:shadow-xl transition-shadow bg-linear-to-br from-background to-muted/10${
+        className={`${designTokens.cards.elevated} hover:shadow-xl transition-all duration-200${
           overlay ? " shadow-2xl ring-2 ring-primary/50" : ""
         }`}
       >
-        <CardHeader className="pb-4">
-          <div className="flex items-start gap-3">
-            {/* Drag handle */}
-            <button
-              {...listeners}
-              {...attributes}
-              className="mt-0.5 p-1 rounded cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground hover:bg-muted/40 transition-colors shrink-0"
-              title="Drag to change category"
+        <div className="flex items-center gap-2 px-3 py-2.5">
+          {/* Drag handle */}
+          <button
+            {...listeners}
+            {...attributes}
+            className="p-0.5 rounded cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-foreground hover:bg-muted/40 transition-colors shrink-0"
+            title="Drag to change category"
+          >
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
-              </svg>
-            </button>
-            <div className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.primary} shrink-0`}>
-              <svg className={`${designTokens.icons.md} ${designTokens.iconColors.primary}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <CardTitle className={`${designTokens.typography.h3} mb-2`} title={sound.name}>
-                {truncateName(sound.name)}
-              </CardTitle>
-              <CardDescription className={`${designTokens.typography.smallMuted} flex flex-col gap-1.5`}>
-                <span className="flex items-center gap-1.5">
-                  <svg className={designTokens.icons.sm} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  {formatDuration(sound.duration)}
-                </span>
-                {sound.play_count > 0 && (
-                  <span className="flex items-center gap-1.5">
-                    <svg className={designTokens.icons.sm} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    Played {sound.play_count}x
-                  </span>
-                )}
-              </CardDescription>
-            </div>
-            {canDelete && (
-              <motion.button
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={() => onDelete(sound)}
-                disabled={deleting === sound.id}
-                className="p-2 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors disabled:opacity-50 shrink-0"
-                title="Delete sound"
-              >
-                {deleting === sound.id ? (
-                  <motion.svg
-                    animate={{ rotate: 360 }}
-                    transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                    className={designTokens.icons.sm}
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </motion.svg>
-                ) : (
-                  <svg className={designTokens.icons.sm} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                )}
-              </motion.button>
-            )}
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M4 8h16M4 16h16"
+              />
+            </svg>
+          </button>
+
+          {/* Music icon */}
+          <div className="p-1.5 rounded-md bg-primary/10 shrink-0">
+            <svg
+              className="h-3.5 w-3.5 text-primary"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+              />
+            </svg>
           </div>
-        </CardHeader>
-        <CardContent>
-          <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-            <Button
-              onClick={() => onPlay(sound)}
-              disabled={playing === sound.id}
-              className={`w-full ${designTokens.components.button}`}
-              variant={playing === sound.id ? "secondary" : "default"}
+
+          {/* Name + meta */}
+          <div className="flex-1 min-w-0">
+            <p
+              className="text-sm font-medium leading-tight truncate"
+              title={sound.name}
             >
-              {playing === sound.id ? (
-                <motion.span
-                  className="flex items-center gap-2"
-                  animate={{ opacity: [1, 0.5, 1] }}
-                  transition={{ repeat: Infinity, duration: 1.5 }}
-                >
-                  <svg className={designTokens.icons.md} fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                  Playing...
-                </motion.span>
-              ) : (
-                <span className="flex items-center gap-2">
-                  <svg className={designTokens.icons.md} fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M8 5v14l11-7z" />
-                  </svg>
-                  Play in Voice
+              {truncateName(sound.name)}
+            </p>
+            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+              <svg
+                className="h-3 w-3 shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+              </svg>
+              {formatDuration(sound.duration)}
+              {sound.play_count > 0 && (
+                <span className="ml-1 text-muted-foreground/70">
+                  · {sound.play_count}x
                 </span>
               )}
-            </Button>
-          </motion.div>
-        </CardContent>
+            </p>
+          </div>
+
+          {/* Play button */}
+          <motion.button
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={() => onPlay(sound)}
+            disabled={playing === sound.id}
+            className={`p-1.5 rounded-lg shrink-0 transition-colors disabled:opacity-60 ${
+              playing === sound.id
+                ? "bg-primary/20 text-primary"
+                : "hover:bg-primary/10 text-muted-foreground hover:text-primary"
+            }`}
+            title="Play in Voice"
+          >
+            {playing === sound.id ? (
+              <motion.svg
+                className="h-4 w-4"
+                fill="currentColor"
+                viewBox="0 0 24 24"
+                animate={{ opacity: [1, 0.4, 1] }}
+                transition={{ repeat: Infinity, duration: 1.2 }}
+              >
+                <path d="M8 5v14l11-7z" />
+              </motion.svg>
+            ) : (
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+            )}
+          </motion.button>
+
+          {/* Delete button */}
+          {canDelete && (
+            <motion.button
+              whileHover={{ scale: 1.15 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => onDelete(sound)}
+              disabled={deleting === sound.id}
+              className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground/50 hover:text-destructive transition-colors disabled:opacity-50 shrink-0"
+              title="Delete sound"
+            >
+              {deleting === sound.id ? (
+                <motion.svg
+                  animate={{ rotate: 360 }}
+                  transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </motion.svg>
+              ) : (
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
+                </svg>
+              )}
+            </motion.button>
+          )}
+        </div>
       </Card>
     </motion.div>
   );
@@ -259,9 +305,14 @@ function DroppableCategorySection({
   isDefault: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <div className="space-y-4">
+    <div
+      className="space-y-3"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       {/* Section header — droppable zone */}
       <div
         ref={setNodeRef}
@@ -269,12 +320,16 @@ function DroppableCategorySection({
           isOver
             ? "bg-primary/10 border-primary/40 shadow-inner"
             : isDraggingAny
-            ? "border-dashed border-primary/30 bg-muted/30"
-            : "border-border/40 bg-muted/20"
+              ? "border-dashed border-primary/30 bg-muted/30"
+              : "border-border/40 bg-muted/20"
         }`}
       >
-        <div className={`w-2 h-2 rounded-full ${isOver ? "bg-primary animate-pulse" : "bg-muted-foreground/40"}`} />
-        <span className="font-semibold text-sm text-foreground/80 flex-1">{label}</span>
+        <div
+          className={`w-2 h-2 rounded-full ${isOver ? "bg-primary animate-pulse" : "bg-muted-foreground/40"}`}
+        />
+        <span className="font-semibold text-sm text-foreground/80 flex-1">
+          {label}
+        </span>
         <span className="text-xs text-muted-foreground bg-muted/50 px-2 py-0.5 rounded-full">
           {sounds.length} sound{sounds.length !== 1 ? "s" : ""}
         </span>
@@ -289,9 +344,18 @@ function DroppableCategorySection({
                 className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 title="Rename category"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                  />
                 </svg>
               </button>
             )}
@@ -301,22 +365,36 @@ function DroppableCategorySection({
                 className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                 title="Delete category"
               >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                <svg
+                  className="w-3.5 h-3.5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                  />
                 </svg>
               </button>
             )}
           </div>
         )}
       </div>
-      {/* Sound cards */}
+      {/* Sound cards — 2 cols default, expands to 4 cols on category hover */}
       {sounds.length > 0 ? (
         <motion.div
+          layout
           variants={containerVariants}
           initial="hidden"
           animate="show"
-          className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+          className={`grid gap-2 transition-all duration-300 ${
+            isHovered
+              ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              : "grid-cols-1 sm:grid-cols-2"
+          }`}
         >
           {sounds.map((sound) => (
             <DraggableSoundCard
@@ -339,7 +417,9 @@ function DroppableCategorySection({
           }`}
         >
           <p className="text-sm text-muted-foreground">
-            {isDraggingAny ? "Drop here to add to this category" : "No sounds — drag a card here"}
+            {isDraggingAny
+              ? "Drop here to add to this category"
+              : "No sounds — drag a card here"}
           </p>
         </div>
       )}
@@ -375,8 +455,10 @@ export default function SoundsPage() {
   const [savingCategory, setSavingCategory] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [editCategoryName, setEditCategoryName] = useState("");
-  const [deleteCategoryTarget, setDeleteCategoryTarget] = useState<Category | null>(null);
-  const [deleteCategoryDialogOpen, setDeleteCategoryDialogOpen] = useState(false);
+  const [deleteCategoryTarget, setDeleteCategoryTarget] =
+    useState<Category | null>(null);
+  const [deleteCategoryDialogOpen, setDeleteCategoryDialogOpen] =
+    useState(false);
 
   // ── Upload modal
   const [uploadOpen, setUploadOpen] = useState(false);
@@ -403,7 +485,10 @@ export default function SoundsPage() {
     socket
       .connect()
       .catch((err) =>
-        console.warn("[WS] Could not connect, will use HTTP fallback:", err.message),
+        console.warn(
+          "[WS] Could not connect, will use HTTP fallback:",
+          err.message,
+        ),
       );
     return () => socket.disconnect();
   }, []);
@@ -420,7 +505,9 @@ export default function SoundsPage() {
   useEffect(() => {
     if (search) {
       setFilteredSounds(
-        sounds.filter((s) => s.name.toLowerCase().includes(search.toLowerCase())),
+        sounds.filter((s) =>
+          s.name.toLowerCase().includes(search.toLowerCase()),
+        ),
       );
     } else {
       setFilteredSounds(sounds);
@@ -430,14 +517,18 @@ export default function SoundsPage() {
   // ── Auto-select user's VC
   useEffect(() => {
     if (!discordUserId || voiceChannels.length === 0) return;
-    const userChannel = voiceChannels.find((c) => c.memberIds?.includes(discordUserId));
+    const userChannel = voiceChannels.find((c) =>
+      c.memberIds?.includes(discordUserId),
+    );
     if (userChannel) setSelectedChannel(userChannel.id);
   }, [discordUserId, voiceChannels]);
 
   // ── Grouped sounds (memoised)
   const soundsByCategory = useMemo(() => {
     const grouped: Record<string, Sound[]> = { uncategorized: [] };
-    categories.forEach((cat) => { grouped[cat.id] = []; });
+    categories.forEach((cat) => {
+      grouped[cat.id] = [];
+    });
     filteredSounds.forEach((sound) => {
       const key =
         sound.category_id && grouped[sound.category_id] !== undefined
@@ -486,7 +577,9 @@ export default function SoundsPage() {
       if (res.data?.data) {
         const channels: VoiceChannel[] = res.data.data;
         setVoiceChannels(channels);
-        const lobby = channels.find((c) => c.name.toLowerCase().includes("lobby"));
+        const lobby = channels.find((c) =>
+          c.name.toLowerCase().includes("lobby"),
+        );
         setSelectedChannel(lobby?.id ?? channels[0]?.id ?? "");
       }
     } catch (error) {
@@ -497,9 +590,13 @@ export default function SoundsPage() {
   const loadUserSession = async () => {
     try {
       const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) return;
-      const discordIdentity = user.identities?.find((i) => i.provider === "discord");
+      const discordIdentity = user.identities?.find(
+        (i) => i.provider === "discord",
+      );
       const id = discordIdentity?.identity_data?.sub || user.id;
       const username =
         user.user_metadata?.full_name ||
@@ -547,8 +644,13 @@ export default function SoundsPage() {
         await botSocket.current.play(payload);
       } else {
         await playSound(
-          payload.soundId, payload.guildId, payload.channelId,
-          payload.userId, payload.username, payload.soundUrl, payload.soundName,
+          payload.soundId,
+          payload.guildId,
+          payload.channelId,
+          payload.userId,
+          payload.username,
+          payload.soundUrl,
+          payload.soundName,
         );
       }
     } catch (error) {
@@ -576,12 +678,16 @@ export default function SoundsPage() {
       if (dbError) throw new Error(`Database error: ${dbError.message}`);
       const fileName = soundToDelete.file_url.split("/").pop();
       if (fileName) {
-        await supabase.storage.from("sounds").remove([decodeURIComponent(fileName)]);
+        await supabase.storage
+          .from("sounds")
+          .remove([decodeURIComponent(fileName)]);
       }
       setSounds((prev) => prev.filter((s) => s.id !== soundToDelete.id));
     } catch (error) {
       console.error("Error deleting sound:", error);
-      alert(`Failed to delete sound: ${error instanceof Error ? error.message : "Unknown error"}`);
+      alert(
+        `Failed to delete sound: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
     } finally {
       setDeleting(null);
       setSoundToDelete(null);
@@ -593,7 +699,10 @@ export default function SoundsPage() {
     new Promise((resolve) => {
       const audio = document.createElement("audio");
       audio.src = URL.createObjectURL(file);
-      audio.onloadedmetadata = () => { URL.revokeObjectURL(audio.src); resolve(audio.duration); };
+      audio.onloadedmetadata = () => {
+        URL.revokeObjectURL(audio.src);
+        resolve(audio.duration);
+      };
     });
 
   const handleUploadDrag = (e: React.DragEvent) => {
@@ -623,18 +732,31 @@ export default function SoundsPage() {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFile || !uploadName) { setUploadMsg("Please provide both file and name"); return; }
-    if (uploadFile.size > 15 * 1024 * 1024) { setUploadMsg("File must be under 15MB"); return; }
+    if (!uploadFile || !uploadName) {
+      setUploadMsg("Please provide both file and name");
+      return;
+    }
+    if (uploadFile.size > 15 * 1024 * 1024) {
+      setUploadMsg("File must be under 15MB");
+      return;
+    }
     const duration = await getAudioDuration(uploadFile);
-    if (duration > 600) { setUploadMsg("Audio must be under 10 minutes"); return; }
+    if (duration > 600) {
+      setUploadMsg("Audio must be under 10 minutes");
+      return;
+    }
     setUploading(true);
     setUploadMsg("");
     try {
       const supabase = createClient();
       const fileName = `${Date.now()}-${uploadFile.name}`;
-      const { error: uploadError } = await supabase.storage.from("sounds").upload(fileName, uploadFile);
+      const { error: uploadError } = await supabase.storage
+        .from("sounds")
+        .upload(fileName, uploadFile);
       if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from("sounds").getPublicUrl(fileName);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("sounds").getPublicUrl(fileName);
       const { error: dbError } = await supabase.from("sounds").insert({
         name: uploadName,
         file_url: publicUrl,
@@ -647,9 +769,14 @@ export default function SoundsPage() {
       setUploadFile(null);
       setUploadName("");
       await loadSounds();
-      setTimeout(() => { setUploadOpen(false); setUploadMsg(""); }, 1200);
+      setTimeout(() => {
+        setUploadOpen(false);
+        setUploadMsg("");
+      }, 1200);
     } catch (err: unknown) {
-      setUploadMsg(`❌ ${err instanceof Error ? err.message : "Upload failed"}`);
+      setUploadMsg(
+        `❌ ${err instanceof Error ? err.message : "Upload failed"}`,
+      );
     } finally {
       setUploading(false);
     }
@@ -689,7 +816,9 @@ export default function SoundsPage() {
         .update({ name })
         .eq("id", editingCategory.id);
       if (error) throw error;
-      setCategories((prev) => prev.map((c) => (c.id === editingCategory.id ? { ...c, name } : c)));
+      setCategories((prev) =>
+        prev.map((c) => (c.id === editingCategory.id ? { ...c, name } : c)),
+      );
       setEditingCategory(null);
       setEditCategoryName("");
     } catch (err) {
@@ -708,10 +837,14 @@ export default function SoundsPage() {
         .delete()
         .eq("id", deleteCategoryTarget.id);
       if (error) throw error;
-      setCategories((prev) => prev.filter((c) => c.id !== deleteCategoryTarget.id));
+      setCategories((prev) =>
+        prev.filter((c) => c.id !== deleteCategoryTarget.id),
+      );
       setSounds((prev) =>
         prev.map((s) =>
-          s.category_id === deleteCategoryTarget.id ? { ...s, category_id: null } : s,
+          s.category_id === deleteCategoryTarget.id
+            ? { ...s, category_id: null }
+            : s,
         ),
       );
     } catch (err) {
@@ -735,7 +868,8 @@ export default function SoundsPage() {
     const targetCategoryId = over.id as string;
     const sound = sounds.find((s) => s.id === soundId);
     if (!sound) return;
-    const newCatId = targetCategoryId === "uncategorized" ? null : targetCategoryId;
+    const newCatId =
+      targetCategoryId === "uncategorized" ? null : targetCategoryId;
     if (sound.category_id === newCatId) return;
     // Optimistic update
     setSounds((prev) =>
@@ -752,7 +886,9 @@ export default function SoundsPage() {
       console.error("Error updating category:", err);
       // Revert
       setSounds((prev) =>
-        prev.map((s) => (s.id === soundId ? { ...s, category_id: sound.category_id } : s)),
+        prev.map((s) =>
+          s.id === soundId ? { ...s, category_id: sound.category_id } : s,
+        ),
       );
     }
   };
@@ -781,9 +917,18 @@ export default function SoundsPage() {
               transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
               className="inline-block"
             >
-              <svg className="h-12 w-12 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              <svg
+                className="h-12 w-12 text-primary"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
               </svg>
             </motion.div>
             <p className="text-lg text-muted-foreground">Loading sounds...</p>
@@ -795,7 +940,11 @@ export default function SoundsPage() {
 
   return (
     <AppLayout>
-      <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
         <div className={designTokens.spacing.cardSection}>
           {/* ── Header ── */}
           <motion.div
@@ -804,34 +953,81 @@ export default function SoundsPage() {
             animate={{ opacity: 1, y: 0 }}
           >
             <div>
-              <h1 className={`${designTokens.typography.h1} mb-3`}>Sound Library</h1>
-              <p className={`${designTokens.typography.bodyMuted} flex items-center gap-2`}>
-                <svg className={designTokens.icons.md} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+              <h1 className={`${designTokens.typography.h1} mb-3`}>
+                Sound Library
+              </h1>
+              <p
+                className={`${designTokens.typography.bodyMuted} flex items-center gap-2`}
+              >
+                <svg
+                  className={designTokens.icons.md}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                  />
                 </svg>
-                <span className="font-semibold">{sounds.length}</span> sound(s) available
+                <span className="font-semibold">{sounds.length}</span> sound(s)
+                available
               </p>
             </div>
             <div className="flex items-center gap-3 flex-wrap">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button variant="outline" size="lg" onClick={() => setCategoryPanelOpen(true)} className={`gap-2 shadow-lg`}>
-                  <svg className={designTokens.icons.md} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={() => setCategoryPanelOpen(true)}
+                  className={`${designTokens.components.button} gap-2 shadow-lg`}
+                >
+                  <svg
+                    className={designTokens.icons.md}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
+                    />
                   </svg>
                   Manage Categories
                 </Button>
               </motion.div>
               {canUpload && (
-                <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
                   <Button
-                    onClick={() => { setUploadOpen(true); setUploadMsg(""); }}
+                    onClick={() => {
+                      setUploadOpen(true);
+                      setUploadMsg("");
+                    }}
                     size="lg"
                     className={`${designTokens.components.button} shadow-lg`}
                   >
-                    <svg className={`${designTokens.icons.md} mr-2`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    <svg
+                      className={`${designTokens.icons.md} mr-2`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
                     </svg>
                     Upload New
                   </Button>
@@ -848,9 +1044,18 @@ export default function SoundsPage() {
             className="relative"
           >
             <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none">
-              <svg className={`${designTokens.icons.md} ${designTokens.iconColors.muted}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              <svg
+                className={`${designTokens.icons.md} ${designTokens.iconColors.muted}`}
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
               </svg>
             </div>
             <Input
@@ -870,9 +1075,18 @@ export default function SoundsPage() {
               className="flex items-center gap-3"
             >
               <div className="flex items-center gap-2 text-sm text-gray-400">
-                <svg className={designTokens.icons.md} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                    d="M15.536 8.464a5 5 0 010 7.072M12 6a7.071 7.071 0 000 12M8.464 8.464a5 5 0 000 7.072" />
+                <svg
+                  className={designTokens.icons.md}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15.536 8.464a5 5 0 010 7.072M12 6a7.071 7.071 0 000 12M8.464 8.464a5 5 0 000 7.072"
+                  />
                 </svg>
                 <span>Play in:</span>
               </div>
@@ -883,7 +1097,8 @@ export default function SoundsPage() {
               >
                 {voiceChannels.map((ch) => (
                   <option key={ch.id} value={ch.id}>
-                    {ch.name}{ch.memberCount > 0 ? ` (${ch.memberCount})` : ""}
+                    {ch.name}
+                    {ch.memberCount > 0 ? ` (${ch.memberCount})` : ""}
                   </option>
                 ))}
               </select>
@@ -898,10 +1113,21 @@ export default function SoundsPage() {
               transition={{ delay: 0.2 }}
               className="text-xs text-muted-foreground/60 flex items-center gap-1.5"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8h16M4 16h16" />
+              <svg
+                className="w-3.5 h-3.5"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 8h16M4 16h16"
+                />
               </svg>
-              Drag the handle on a card and drop it onto a category header to move it
+              Drag the handle on a card and drop it onto a category header to
+              move it
             </motion.p>
           )}
 
@@ -909,7 +1135,11 @@ export default function SoundsPage() {
           {filteredSounds.length > 0 ? (
             <div className="space-y-10">
               {categories.map((cat) => (
-                <motion.div key={cat.id} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+                <motion.div
+                  key={cat.id}
+                  initial={{ opacity: 0, y: 16 }}
+                  animate={{ opacity: 1, y: 0 }}
+                >
                   <DroppableCategorySection
                     id={cat.id}
                     label={cat.name}
@@ -923,13 +1153,22 @@ export default function SoundsPage() {
                     formatDuration={formatDuration}
                     truncateName={truncateName}
                     isDraggingAny={!!draggingSound}
-                    onEditCategory={() => { setEditingCategory(cat); setEditCategoryName(cat.name); }}
-                    onDeleteCategory={() => { setDeleteCategoryTarget(cat); setDeleteCategoryDialogOpen(true); }}
+                    onEditCategory={() => {
+                      setEditingCategory(cat);
+                      setEditCategoryName(cat.name);
+                    }}
+                    onDeleteCategory={() => {
+                      setDeleteCategoryTarget(cat);
+                      setDeleteCategoryDialogOpen(true);
+                    }}
                     isDefault={false}
                   />
                 </motion.div>
               ))}
-              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+              <motion.div
+                initial={{ opacity: 0, y: 16 }}
+                animate={{ opacity: 1, y: 0 }}
+              >
                 <DroppableCategorySection
                   id="uncategorized"
                   label="Uncategorized"
@@ -948,7 +1187,11 @@ export default function SoundsPage() {
               </motion.div>
             </div>
           ) : (
-            <motion.div key="empty" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+            <motion.div
+              key="empty"
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+            >
               <Card className="border-none shadow-lg">
                 <CardContent className="py-20 text-center">
                   <motion.div
@@ -965,11 +1208,19 @@ export default function SoundsPage() {
                       stroke="currentColor"
                     >
                       {search ? (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
                       ) : (
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                        />
                       )}
                     </svg>
                   </motion.div>
@@ -980,19 +1231,34 @@ export default function SoundsPage() {
                     {search
                       ? "Try adjusting your search terms"
                       : canUpload
-                      ? "Get started by uploading your first audio file"
-                      : "No sounds have been uploaded yet"}
+                        ? "Get started by uploading your first audio file"
+                        : "No sounds have been uploaded yet"}
                   </p>
                   {!search && canUpload && (
-                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <motion.div
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                    >
                       <Button
-                        onClick={() => { setUploadOpen(true); setUploadMsg(""); }}
+                        onClick={() => {
+                          setUploadOpen(true);
+                          setUploadMsg("");
+                        }}
                         size="lg"
                         className={designTokens.components.button}
                       >
-                        <svg className={`${designTokens.icons.md} mr-2`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        <svg
+                          className={`${designTokens.icons.md} mr-2`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                          />
                         </svg>
                         Upload Your First Sound
                       </Button>
@@ -1029,7 +1295,12 @@ export default function SoundsPage() {
         {categoryPanelOpen && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={(e) => { if (e.target === e.currentTarget) { setCategoryPanelOpen(false); setEditingCategory(null); } }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setCategoryPanelOpen(false);
+                setEditingCategory(null);
+              }
+            }}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -1040,23 +1311,51 @@ export default function SoundsPage() {
             >
               <div className="p-6 border-b border-border flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.primary}`}>
-                    <svg className={`${designTokens.icons.md} ${designTokens.iconColors.primary}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                  <div
+                    className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.primary}`}
+                  >
+                    <svg
+                      className={`${designTokens.icons.md} ${designTokens.iconColors.primary}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
+                      />
                     </svg>
                   </div>
                   <div>
-                    <h2 className={designTokens.typography.h2}>Manage Categories</h2>
-                    <p className={designTokens.typography.smallMuted}>Create, rename, or delete sound categories</p>
+                    <h2 className={designTokens.typography.h2}>
+                      Manage Categories
+                    </h2>
+                    <p className={designTokens.typography.smallMuted}>
+                      Create, rename, or delete sound categories
+                    </p>
                   </div>
                 </div>
                 <button
-                  onClick={() => { setCategoryPanelOpen(false); setEditingCategory(null); }}
+                  onClick={() => {
+                    setCategoryPanelOpen(false);
+                    setEditingCategory(null);
+                  }}
                   className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground transition-colors"
                 >
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="w-5 h-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
@@ -1064,14 +1363,23 @@ export default function SoundsPage() {
               <div className="p-6 space-y-6 max-h-[70vh] overflow-y-auto">
                 {/* Create new */}
                 <div className="space-y-3">
-                  <label className={`${designTokens.typography.body} font-medium`}>New Category</label>
+                  <label
+                    className={`${designTokens.typography.body} font-medium`}
+                  >
+                    New Category
+                  </label>
                   <div className="flex gap-2">
                     <Input
                       value={newCategoryName}
                       onChange={(e) => setNewCategoryName(e.target.value)}
                       placeholder="Category name…"
                       className={`${designTokens.components.input} flex-1`}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleCreateCategory(); } }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          handleCreateCategory();
+                        }
+                      }}
                     />
                     <Button
                       onClick={handleCreateCategory}
@@ -1079,14 +1387,38 @@ export default function SoundsPage() {
                       className={designTokens.components.button}
                     >
                       {savingCategory ? (
-                        <motion.svg animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
-                          className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        <motion.svg
+                          animate={{ rotate: 360 }}
+                          transition={{
+                            repeat: Infinity,
+                            duration: 1,
+                            ease: "linear",
+                          }}
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                          />
                         </motion.svg>
                       ) : (
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 4v16m8-8H4"
+                          />
                         </svg>
                       )}
                       <span className="ml-1.5">Add</span>
@@ -1096,15 +1428,23 @@ export default function SoundsPage() {
 
                 {/* Existing categories */}
                 <div className="space-y-2">
-                  <label className={`${designTokens.typography.body} font-medium`}>Existing Categories</label>
+                  <label
+                    className={`${designTokens.typography.body} font-medium`}
+                  >
+                    Existing Categories
+                  </label>
 
                   {/* Uncategorized — read-only */}
                   <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-muted/30 border border-border/40">
-                    <span className="flex-1 text-sm font-medium text-muted-foreground">Uncategorized</span>
+                    <span className="flex-1 text-sm font-medium text-muted-foreground">
+                      Uncategorized
+                    </span>
                     <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                       {soundsByCategory["uncategorized"]?.length ?? 0} sounds
                     </span>
-                    <span className="text-xs text-muted-foreground/50 italic">default</span>
+                    <span className="text-xs text-muted-foreground/50 italic">
+                      default
+                    </span>
                   </div>
 
                   {categories.length === 0 && (
@@ -1119,48 +1459,97 @@ export default function SoundsPage() {
                         <div className="flex items-center gap-2 px-4 py-2 rounded-lg border border-primary/30 bg-primary/5">
                           <Input
                             value={editCategoryName}
-                            onChange={(e) => setEditCategoryName(e.target.value)}
+                            onChange={(e) =>
+                              setEditCategoryName(e.target.value)
+                            }
                             className={`${designTokens.components.input} flex-1 h-8 text-sm`}
                             autoFocus
                             onKeyDown={(e) => {
-                              if (e.key === "Enter") { e.preventDefault(); handleRenameCategory(); }
+                              if (e.key === "Enter") {
+                                e.preventDefault();
+                                handleRenameCategory();
+                              }
                               if (e.key === "Escape") setEditingCategory(null);
                             }}
                           />
-                          <Button size="sm" onClick={handleRenameCategory} disabled={savingCategory} className="h-8 text-xs">
+                          <Button
+                            size="sm"
+                            onClick={handleRenameCategory}
+                            disabled={savingCategory}
+                            className="h-8 text-xs"
+                          >
                             Save
                           </Button>
-                          <button onClick={() => setEditingCategory(null)} className="p-1 text-muted-foreground hover:text-foreground">
-                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          <button
+                            onClick={() => setEditingCategory(null)}
+                            className="p-1 text-muted-foreground hover:text-foreground"
+                          >
+                            <svg
+                              className="w-4 h-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M6 18L18 6M6 6l12 12"
+                              />
                             </svg>
                           </button>
                         </div>
                       ) : (
                         <div className="flex items-center gap-3 px-4 py-3 rounded-lg border border-border/40 hover:border-border/70 hover:bg-muted/20 transition-colors group">
-                          <span className="flex-1 text-sm font-medium">{cat.name}</span>
+                          <span className="flex-1 text-sm font-medium">
+                            {cat.name}
+                          </span>
                           <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
                             {soundsByCategory[cat.id]?.length ?? 0} sounds
                           </span>
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
-                              onClick={() => { setEditingCategory(cat); setEditCategoryName(cat.name); }}
+                              onClick={() => {
+                                setEditingCategory(cat);
+                                setEditCategoryName(cat.name);
+                              }}
                               className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                               title="Rename"
                             >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              <svg
+                                className="w-3.5 h-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                                />
                               </svg>
                             </button>
                             <button
-                              onClick={() => { setDeleteCategoryTarget(cat); setDeleteCategoryDialogOpen(true); }}
+                              onClick={() => {
+                                setDeleteCategoryTarget(cat);
+                                setDeleteCategoryDialogOpen(true);
+                              }}
                               className="p-1.5 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                               title="Delete"
                             >
-                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              <svg
+                                className="w-3.5 h-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
                               </svg>
                             </button>
                           </div>
@@ -1171,9 +1560,18 @@ export default function SoundsPage() {
                 </div>
 
                 <p className="text-xs text-muted-foreground/60 flex items-start gap-1.5">
-                  <svg className="w-3.5 h-3.5 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  <svg
+                    className="w-3.5 h-3.5 mt-0.5 shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                   Deleting a category moves all its sounds to Uncategorized.
                 </p>
@@ -1188,7 +1586,9 @@ export default function SoundsPage() {
         {uploadOpen && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-            onClick={(e) => { if (e.target === e.currentTarget) setUploadOpen(false); }}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setUploadOpen(false);
+            }}
           >
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -1200,26 +1600,59 @@ export default function SoundsPage() {
               <div className="p-6 border-b border-border">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.purple}`}>
-                      <svg className={`${designTokens.icons.md} ${designTokens.iconColors.purple}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                    <div
+                      className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.purple}`}
+                    >
+                      <svg
+                        className={`${designTokens.icons.md} ${designTokens.iconColors.purple}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
                       </svg>
                     </div>
                     <div>
-                      <h2 className={designTokens.typography.h2}>Upload New Sound</h2>
-                      <div className={`${designTokens.typography.smallMuted} flex items-center gap-4 mt-1`}>
+                      <h2 className={designTokens.typography.h2}>
+                        Upload New Sound
+                      </h2>
+                      <div
+                        className={`${designTokens.typography.smallMuted} flex items-center gap-4 mt-1`}
+                      >
                         <span className="flex items-center gap-1.5">
-                          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                          <svg
+                            className="h-4 w-4 shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
                           </svg>
                           15MB
                         </span>
                         <span className="flex items-center gap-1.5">
-                          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <svg
+                            className="h-4 w-4 shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
                           </svg>
                           10 mins
                         </span>
@@ -1230,20 +1663,49 @@ export default function SoundsPage() {
                     onClick={() => setUploadOpen(false)}
                     className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground transition-colors"
                   >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
                     </svg>
                   </button>
                 </div>
               </div>
 
               <div className="p-6">
-                <form onSubmit={handleUpload} className={designTokens.spacing.cardSection}>
-                  <motion.div className={designTokens.spacing.inputGroup} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.05 }}>
-                    <label className={`${designTokens.typography.body} flex items-center gap-2`}>
-                      <svg className={`${designTokens.icons.sm} ${designTokens.iconColors.muted}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z" />
+                <form
+                  onSubmit={handleUpload}
+                  className={designTokens.spacing.cardSection}
+                >
+                  <motion.div
+                    className={designTokens.spacing.inputGroup}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.05 }}
+                  >
+                    <label
+                      className={`${designTokens.typography.body} flex items-center gap-2`}
+                    >
+                      <svg
+                        className={`${designTokens.icons.sm} ${designTokens.iconColors.muted}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
+                        />
                       </svg>
                       Sound Name
                     </label>
@@ -1257,11 +1719,27 @@ export default function SoundsPage() {
                     />
                   </motion.div>
 
-                  <motion.div className={designTokens.spacing.inputGroup} initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 }}>
-                    <label className={`${designTokens.typography.body} flex items-center gap-2`}>
-                      <svg className={`${designTokens.icons.sm} ${designTokens.iconColors.muted}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                          d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                  <motion.div
+                    className={designTokens.spacing.inputGroup}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 }}
+                  >
+                    <label
+                      className={`${designTokens.typography.body} flex items-center gap-2`}
+                    >
+                      <svg
+                        className={`${designTokens.icons.sm} ${designTokens.iconColors.muted}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                        />
                       </svg>
                       Audio File
                     </label>
@@ -1271,8 +1749,12 @@ export default function SoundsPage() {
                       onDragOver={handleUploadDrag}
                       onDrop={handleUploadDrop}
                       animate={{
-                        borderColor: dragActive ? "hsl(var(--primary))" : "hsl(var(--border))",
-                        backgroundColor: dragActive ? "hsl(var(--primary) / 0.05)" : "transparent",
+                        borderColor: dragActive
+                          ? "hsl(var(--primary))"
+                          : "hsl(var(--border))",
+                        backgroundColor: dragActive
+                          ? "hsl(var(--primary) / 0.05)"
+                          : "transparent",
                       }}
                       className="relative border-2 border-dashed rounded-lg p-8 transition-colors"
                     >
@@ -1289,34 +1771,90 @@ export default function SoundsPage() {
                           transition={{ type: "spring", stiffness: 300 }}
                           className={`${designTokens.iconContainer} p-4 rounded-full ${designTokens.iconBackgrounds.primary}`}
                         >
-                          <svg className={`${designTokens.icons.md} ${designTokens.iconColors.primary}`} style={{ height: "2rem", width: "2rem" }} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          <svg
+                            className={`${designTokens.icons.md} ${designTokens.iconColors.primary}`}
+                            style={{ height: "2rem", width: "2rem" }}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            />
                           </svg>
                         </motion.div>
                         <div>
-                          <p className={designTokens.typography.h3}>{dragActive ? "Drop your file here" : "Click to browse or drag and drop"}</p>
-                          <p className={`${designTokens.typography.small} mt-1`}>MP3, WAV, OGG, or any audio format</p>
+                          <p className={designTokens.typography.h3}>
+                            {dragActive
+                              ? "Drop your file here"
+                              : "Click to browse or drag and drop"}
+                          </p>
+                          <p
+                            className={`${designTokens.typography.small} mt-1`}
+                          >
+                            MP3, WAV, OGG, or any audio format
+                          </p>
                         </div>
                       </div>
                     </motion.div>
                     <AnimatePresence>
                       {uploadFile && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden"
+                        >
                           <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 flex items-center gap-3 mt-3">
-                            <div className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.primary}`}>
-                              <svg className={`${designTokens.icons.md} ${designTokens.iconColors.primary}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                  d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+                            <div
+                              className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.primary}`}
+                            >
+                              <svg
+                                className={`${designTokens.icons.md} ${designTokens.iconColors.primary}`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                                />
                               </svg>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className={`${designTokens.typography.h3} truncate`}>{uploadFile.name}</p>
-                              <p className={designTokens.typography.small}>{(uploadFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                              <p
+                                className={`${designTokens.typography.h3} truncate`}
+                              >
+                                {uploadFile.name}
+                              </p>
+                              <p className={designTokens.typography.small}>
+                                {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
                             </div>
-                            <motion.button type="button" onClick={() => setUploadFile(null)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="p-1 rounded-lg hover:bg-destructive/20 text-destructive transition-colors">
-                              <svg className={designTokens.icons.md} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            <motion.button
+                              type="button"
+                              onClick={() => setUploadFile(null)}
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              className="p-1 rounded-lg hover:bg-destructive/20 text-destructive transition-colors"
+                            >
+                              <svg
+                                className={designTokens.icons.md}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
                               </svg>
                             </motion.button>
                           </div>
@@ -1325,21 +1863,54 @@ export default function SoundsPage() {
                     </AnimatePresence>
                   </motion.div>
 
-                  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
-                    <Button type="submit" disabled={uploading} className={`${designTokens.components.button} w-full font-semibold`} size="lg">
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                  >
+                    <Button
+                      type="submit"
+                      disabled={uploading}
+                      className={`${designTokens.components.button} w-full font-semibold`}
+                      size="lg"
+                    >
                       {uploading ? (
                         <span className="flex items-center gap-2">
-                          <motion.svg animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }} className={designTokens.icons.md} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                          <motion.svg
+                            animate={{ rotate: 360 }}
+                            transition={{
+                              repeat: Infinity,
+                              duration: 1,
+                              ease: "linear",
+                            }}
+                            className={designTokens.icons.md}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
                           </motion.svg>
                           Uploading...
                         </span>
                       ) : (
                         <span className="flex items-center gap-2">
-                          <svg className={designTokens.icons.md} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                          <svg
+                            className={designTokens.icons.md}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            />
                           </svg>
                           Upload Sound
                         </span>
@@ -1360,14 +1931,32 @@ export default function SoundsPage() {
                         }`}
                       >
                         {uploadMsg.includes("❌") ? (
-                          <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <svg
+                            className="h-5 w-5 shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
                           </svg>
                         ) : (
-                          <svg className="h-5 w-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <svg
+                            className="h-5 w-5 shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
                           </svg>
                         )}
                         {uploadMsg}
@@ -1384,7 +1973,10 @@ export default function SoundsPage() {
       {/* ── Delete sound confirmation ── */}
       <ConfirmDialog
         isOpen={deleteDialogOpen}
-        onClose={() => { setDeleteDialogOpen(false); setSoundToDelete(null); }}
+        onClose={() => {
+          setDeleteDialogOpen(false);
+          setSoundToDelete(null);
+        }}
         onConfirm={confirmDelete}
         title="Delete Sound"
         description={`Are you sure you want to delete "${soundToDelete?.name}"? This action cannot be undone.`}
@@ -1396,7 +1988,10 @@ export default function SoundsPage() {
       {/* ── Delete category confirmation ── */}
       <ConfirmDialog
         isOpen={deleteCategoryDialogOpen}
-        onClose={() => { setDeleteCategoryDialogOpen(false); setDeleteCategoryTarget(null); }}
+        onClose={() => {
+          setDeleteCategoryDialogOpen(false);
+          setDeleteCategoryTarget(null);
+        }}
         onConfirm={confirmDeleteCategory}
         title="Delete Category"
         description={`Are you sure you want to delete "${deleteCategoryTarget?.name}"? All sounds will be moved to Uncategorized.`}

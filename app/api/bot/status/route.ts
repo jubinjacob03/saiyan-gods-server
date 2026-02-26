@@ -6,8 +6,9 @@ export async function GET(_request: NextRequest) {
       headers: {
         Authorization: `Bearer ${process.env.BOT_API_KEY}`,
       },
-      // Don't cache - always fetch fresh status
-      cache: "no-store",
+      // Cache at the Next.js server layer for 30 s so every browser request
+      // is served from the edge instead of waiting on the Railway bot each time.
+      next: { revalidate: 30 },
     });
 
     const data = await response.json();
