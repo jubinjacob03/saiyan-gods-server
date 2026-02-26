@@ -102,7 +102,7 @@ export default function AdminPage() {
       const res = await fetch("/api/bot/verification/pending");
       if (res.ok) {
         const json = await res.json();
-        setPendingRequests(json.data ?? []);
+        setPendingRequests(Array.isArray(json.data) ? json.data : []);
       }
     } catch {
       // silent
@@ -888,3 +888,4 @@ export default function AdminPage() {
     </AppLayout>
   );
 }
+
