@@ -23,6 +23,18 @@ export class BotSocket {
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private reconnectDelay = 1000;
   private destroyed = false;
+  private listeners = new Map<string, Set<(data: unknown) => void>>();
+
+  /** Subscribe to a server-push event type (e.g. "verification_update"). */
+  on(event: string, cb: (data: unknown) => void) {
+    if (!this.listeners.has(event)) this.listeners.set(event, new Set());
+    this.listeners.get(event)!.add(cb);
+  }
+
+  /** Unsubscribe from a server-push event. */
+  off(event: string, cb: (data: unknown) => void) {
+    this.listeners.get(event)?.delete(cb);
+  }
 
   /** Establish WS connection + complete auth handshake. */
   async connect(): Promise<void> {
@@ -116,6 +128,13 @@ export class BotSocket {
       } else {
         pending.reject(new Error((msg.error as string) ?? "Play failed"));
       }
+      return;
+    }
+
+    // Dispatch server-push events to subscribers
+    const cbs = this.listeners.get(msg.type as string);
+    if (cbs) {
+      for (const cb of cbs) cb(msg.data);
     }
   }
 
