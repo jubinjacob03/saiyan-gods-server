@@ -110,7 +110,9 @@ export default function SoundsPage() {
   // Once both channels and userId are known, snap to the user's current VC
   useEffect(() => {
     if (!discordUserId || voiceChannels.length === 0) return;
-    const userChannel = voiceChannels.find((c) => c.memberIds?.includes(discordUserId));
+    const userChannel = voiceChannels.find((c) =>
+      c.memberIds?.includes(discordUserId),
+    );
     if (userChannel) {
       setSelectedChannel(userChannel.id);
     }
@@ -141,7 +143,9 @@ export default function SoundsPage() {
         const channels: VoiceChannel[] = res.data.data;
         setVoiceChannels(channels);
         // Will pick the right default once discordUserId is known (see effect below)
-        const lobby = channels.find((c) => c.name.toLowerCase().includes("lobby"));
+        const lobby = channels.find((c) =>
+          c.name.toLowerCase().includes("lobby"),
+        );
         setSelectedChannel(lobby?.id ?? channels[0]?.id ?? "");
       }
     } catch (error) {
@@ -283,16 +287,22 @@ export default function SoundsPage() {
     new Promise((resolve) => {
       const audio = document.createElement("audio");
       audio.src = URL.createObjectURL(file);
-      audio.onloadedmetadata = () => { URL.revokeObjectURL(audio.src); resolve(audio.duration); };
+      audio.onloadedmetadata = () => {
+        URL.revokeObjectURL(audio.src);
+        resolve(audio.duration);
+      };
     });
 
   const handleUploadDrag = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault();
+    e.stopPropagation();
     setDragActive(e.type === "dragenter" || e.type === "dragover");
   };
 
   const handleUploadDrop = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation(); setDragActive(false);
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
     const f = e.dataTransfer.files?.[0];
     if (f?.type.startsWith("audio/")) {
       setUploadFile(f);
@@ -302,31 +312,55 @@ export default function SoundsPage() {
 
   const handleUploadFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) { setUploadFile(f); if (!uploadName) setUploadName(f.name.replace(/\.[^/.]+$/, "")); }
+    if (f) {
+      setUploadFile(f);
+      if (!uploadName) setUploadName(f.name.replace(/\.[^/.]+$/, ""));
+    }
   };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!uploadFile || !uploadName) { setUploadMsg("Please provide both file and name"); return; }
-    if (uploadFile.size > 15 * 1024 * 1024) { setUploadMsg("File must be under 15MB"); return; }
+    if (!uploadFile || !uploadName) {
+      setUploadMsg("Please provide both file and name");
+      return;
+    }
+    if (uploadFile.size > 15 * 1024 * 1024) {
+      setUploadMsg("File must be under 15MB");
+      return;
+    }
     const duration = await getAudioDuration(uploadFile);
-    if (duration > 600) { setUploadMsg("Audio must be under 10 minutes"); return; }
-    setUploading(true); setUploadMsg("");
+    if (duration > 600) {
+      setUploadMsg("Audio must be under 10 minutes");
+      return;
+    }
+    setUploading(true);
+    setUploadMsg("");
     try {
       const supabase = createClient();
       const fileName = `${Date.now()}-${uploadFile.name}`;
-      const { error: uploadError } = await supabase.storage.from("sounds").upload(fileName, uploadFile);
+      const { error: uploadError } = await supabase.storage
+        .from("sounds")
+        .upload(fileName, uploadFile);
       if (uploadError) throw uploadError;
-      const { data: { publicUrl } } = supabase.storage.from("sounds").getPublicUrl(fileName);
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from("sounds").getPublicUrl(fileName);
       const { error: dbError } = await supabase.from("sounds").insert({
-        name: uploadName, file_url: publicUrl, file_size: uploadFile.size,
-        duration: Math.floor(duration), uploaded_by: "user",
+        name: uploadName,
+        file_url: publicUrl,
+        file_size: uploadFile.size,
+        duration: Math.floor(duration),
+        uploaded_by: "user",
       });
       if (dbError) throw dbError;
       setUploadMsg("✅ Uploaded!");
-      setUploadFile(null); setUploadName("");
+      setUploadFile(null);
+      setUploadName("");
       await loadSounds();
-      setTimeout(() => { setUploadOpen(false); setUploadMsg(""); }, 1200);
+      setTimeout(() => {
+        setUploadOpen(false);
+        setUploadMsg("");
+      }, 1200);
     } catch (err: any) {
       setUploadMsg(`❌ ${err.message}`);
     } finally {
@@ -414,7 +448,10 @@ export default function SoundsPage() {
           </div>
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
-              onClick={() => { setUploadOpen(true); setUploadMsg(""); }}
+              onClick={() => {
+                setUploadOpen(true);
+                setUploadMsg("");
+              }}
               size="lg"
               className={`${designTokens.components.button} shadow-lg`}
             >
@@ -746,7 +783,10 @@ export default function SoundsPage() {
                       whileTap={{ scale: 0.95 }}
                     >
                       <Button
-                        onClick={() => { setUploadOpen(true); setUploadMsg(""); }}
+                        onClick={() => {
+                          setUploadOpen(true);
+                          setUploadMsg("");
+                        }}
                         size="lg"
                         className={designTokens.components.button}
                       >
@@ -777,70 +817,397 @@ export default function SoundsPage() {
       {/* Upload Modal */}
       <AnimatePresence>
         {uploadOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) setUploadOpen(false); }}>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setUploadOpen(false);
+            }}
+          >
             <motion.div
-              initial={{ opacity: 0, scale: 0.92 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.92 }}
-              className="w-full max-w-lg mx-4 bg-background border border-border rounded-xl shadow-2xl overflow-hidden"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-2xl bg-background rounded-xl shadow-2xl overflow-hidden"
             >
-              <div className="flex items-center justify-between p-6 border-b border-border">
-                <div>
-                  <h2 className="text-lg font-semibold">Upload Sound</h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">Max 15MB · Max 10 minutes</p>
+              {/* Card Header */}
+              <div className={`p-6 border-b border-border`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.purple}`}
+                    >
+                      <svg
+                        className={`${designTokens.icons.md} ${designTokens.iconColors.purple}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <h2 className={designTokens.typography.h2}>
+                        Upload New Sound
+                      </h2>
+                      <div
+                        className={`${designTokens.typography.smallMuted} flex items-center gap-4 mt-1`}
+                      >
+                        <span className="flex items-center gap-1.5">
+                          <svg
+                            className="h-4 w-4 shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                            />
+                          </svg>
+                          15MB
+                        </span>
+                        <span className="flex items-center gap-1.5">
+                          <svg
+                            className="h-4 w-4 shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                          10 mins
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setUploadOpen(false)}
+                    className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground transition-colors"
+                  >
+                    <svg
+                      className="w-5 h-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6 18L18 6M6 6l12 12"
+                      />
+                    </svg>
+                  </button>
                 </div>
-                <button onClick={() => setUploadOpen(false)} className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground transition-colors">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
               </div>
-              <form onSubmit={handleUpload} className="p-6 space-y-5">
-                {/* Drag & drop zone */}
-                <div
-                  onDragEnter={handleUploadDrag} onDragOver={handleUploadDrag}
-                  onDragLeave={handleUploadDrag} onDrop={handleUploadDrop}
-                  className={`relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-colors cursor-pointer ${
-                    dragActive ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/30"
-                  }`}
-                  onClick={() => document.getElementById("upload-file-input")?.click()}
+
+              {/* Card Content */}
+              <div className="p-6">
+                <form
+                  onSubmit={handleUpload}
+                  className={designTokens.spacing.cardSection}
                 >
-                  <input id="upload-file-input" type="file" accept="audio/*" className="hidden" onChange={handleUploadFileChange} />
-                  <svg className="w-8 h-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                  </svg>
-                  {uploadFile ? (
-                    <div>
-                      <p className="text-sm font-medium text-primary">{uploadFile.name}</p>
-                      <p className="text-xs text-muted-foreground">{(uploadFile.size / 1024 / 1024).toFixed(2)} MB</p>
-                    </div>
-                  ) : (
-                    <div>
-                      <p className="text-sm font-medium">Drop audio file here</p>
-                      <p className="text-xs text-muted-foreground">or click to browse</p>
-                    </div>
-                  )}
-                </div>
-                {/* Name input */}
-                <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Sound Name</label>
-                  <Input
-                    placeholder="e.g. Airhorn"
-                    value={uploadName}
-                    onChange={(e) => setUploadName(e.target.value)}
-                    required
-                  />
-                </div>
-                {uploadMsg && (
-                  <p className={`text-sm ${uploadMsg.startsWith("✅") ? "text-green-500" : "text-red-500"}`}>{uploadMsg}</p>
-                )}
-                <div className="flex gap-3 justify-end pt-1">
-                  <Button type="button" variant="outline" onClick={() => setUploadOpen(false)} disabled={uploading}>Cancel</Button>
-                  <Button type="submit" disabled={uploading || !uploadFile || !uploadName}>
-                    {uploading ? (
-                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />Uploading...</>
-                    ) : "Upload"}
-                  </Button>
-                </div>
-              </form>
+                  {/* Sound Name */}
+                  <motion.div
+                    className={designTokens.spacing.inputGroup}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.05 }}
+                  >
+                    <label
+                      className={`${designTokens.typography.body} flex items-center gap-2`}
+                    >
+                      <svg
+                        className={`${designTokens.icons.sm} ${designTokens.iconColors.muted}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
+                        />
+                      </svg>
+                      Sound Name
+                    </label>
+                    <Input
+                      type="text"
+                      value={uploadName}
+                      onChange={(e) => setUploadName(e.target.value)}
+                      placeholder="Enter a descriptive name"
+                      className={designTokens.components.input}
+                      required
+                    />
+                  </motion.div>
+
+                  {/* Audio File */}
+                  <motion.div
+                    className={designTokens.spacing.inputGroup}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.1 }}
+                  >
+                    <label
+                      className={`${designTokens.typography.body} flex items-center gap-2`}
+                    >
+                      <svg
+                        className={`${designTokens.icons.sm} ${designTokens.iconColors.muted}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                        />
+                      </svg>
+                      Audio File
+                    </label>
+
+                    <motion.div
+                      onDragEnter={handleUploadDrag}
+                      onDragLeave={handleUploadDrag}
+                      onDragOver={handleUploadDrag}
+                      onDrop={handleUploadDrop}
+                      animate={{
+                        borderColor: dragActive
+                          ? "hsl(var(--primary))"
+                          : "hsl(var(--border))",
+                        backgroundColor: dragActive
+                          ? "hsl(var(--primary) / 0.05)"
+                          : "transparent",
+                      }}
+                      className="relative border-2 border-dashed rounded-lg p-8 transition-colors"
+                    >
+                      <input
+                        id="upload-file-input"
+                        type="file"
+                        accept="audio/*"
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                        onChange={handleUploadFileChange}
+                        required={!uploadFile}
+                      />
+                      <div className="flex flex-col items-center justify-center text-center space-y-3">
+                        <motion.div
+                          animate={{ y: dragActive ? -5 : 0 }}
+                          transition={{ type: "spring", stiffness: 300 }}
+                          className={`${designTokens.iconContainer} p-4 rounded-full ${designTokens.iconBackgrounds.primary}`}
+                        >
+                          <svg
+                            className={`${designTokens.icons.md} ${designTokens.iconColors.primary}`}
+                            style={{ height: "2rem", width: "2rem" }}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            />
+                          </svg>
+                        </motion.div>
+                        <div>
+                          <p className={designTokens.typography.h3}>
+                            {dragActive
+                              ? "Drop your file here"
+                              : "Click to browse or drag and drop"}
+                          </p>
+                          <p
+                            className={`${designTokens.typography.small} mt-1`}
+                          >
+                            MP3, WAV, OGG, or any audio format
+                          </p>
+                        </div>
+                      </div>
+                    </motion.div>
+
+                    {/* Selected file chip */}
+                    <AnimatePresence>
+                      {uploadFile && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="p-4 rounded-lg bg-primary/5 border border-primary/20 flex items-center gap-3 mt-3">
+                            <div
+                              className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.primary}`}
+                            >
+                              <svg
+                                className={`${designTokens.icons.md} ${designTokens.iconColors.primary}`}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                                />
+                              </svg>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p
+                                className={`${designTokens.typography.h3} truncate`}
+                              >
+                                {uploadFile.name}
+                              </p>
+                              <p className={designTokens.typography.small}>
+                                {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                              </p>
+                            </div>
+                            <motion.button
+                              type="button"
+                              onClick={() => setUploadFile(null)}
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              className="p-1 rounded-lg hover:bg-destructive/20 text-destructive transition-colors"
+                            >
+                              <svg
+                                className={designTokens.icons.md}
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </motion.button>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.div>
+
+                  {/* Submit button */}
+                  <motion.div
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.15 }}
+                  >
+                    <Button
+                      type="submit"
+                      disabled={uploading}
+                      className={`${designTokens.components.button} w-full font-semibold`}
+                      size="lg"
+                    >
+                      {uploading ? (
+                        <span className="flex items-center gap-2">
+                          <motion.svg
+                            animate={{ rotate: 360 }}
+                            transition={{
+                              repeat: Infinity,
+                              duration: 1,
+                              ease: "linear",
+                            }}
+                            className={designTokens.icons.md}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                            />
+                          </motion.svg>
+                          Uploading...
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-2">
+                          <svg
+                            className={designTokens.icons.md}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                            />
+                          </svg>
+                          Upload Sound
+                        </span>
+                      )}
+                    </Button>
+                  </motion.div>
+
+                  {/* Message */}
+                  <AnimatePresence>
+                    {uploadMsg && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, height: 0 }}
+                        animate={{ opacity: 1, y: 0, height: "auto" }}
+                        exit={{ opacity: 0, y: -10, height: 0 }}
+                        className={`overflow-hidden rounded-lg p-5 text-base font-medium flex items-center gap-3 ${
+                          uploadMsg.includes("❌")
+                            ? "bg-destructive/15 text-destructive border border-destructive/30"
+                            : "bg-green-500/15 text-green-700 dark:text-green-400 border border-green-500/30"
+                        }`}
+                      >
+                        {uploadMsg.includes("❌") ? (
+                          <svg
+                            className="h-5 w-5 shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                        ) : (
+                          <svg
+                            className="h-5 w-5 shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                            />
+                          </svg>
+                        )}
+                        {uploadMsg}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </form>
+              </div>
             </motion.div>
           </div>
         )}
