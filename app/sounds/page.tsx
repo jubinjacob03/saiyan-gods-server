@@ -48,6 +48,7 @@ interface VoiceChannel {
   id: string;
   name: string;
   memberCount: number;
+  memberIds?: string[];
 }
 
 export default function SoundsPage() {
@@ -59,6 +60,13 @@ export default function SoundsPage() {
   const [search, setSearch] = useState("");
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [soundToDelete, setSoundToDelete] = useState<Sound | null>(null);
+  // Upload modal
+  const [uploadOpen, setUploadOpen] = useState(false);
+  const [uploadFile, setUploadFile] = useState<File | null>(null);
+  const [uploadName, setUploadName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [uploadMsg, setUploadMsg] = useState("");
+  const [dragActive, setDragActive] = useState(false);
   const [voiceChannels, setVoiceChannels] = useState<VoiceChannel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState<string>("");
   const [discordUserId, setDiscordUserId] = useState<string>("");
@@ -99,6 +107,15 @@ export default function SoundsPage() {
     }
   }, [search, sounds]);
 
+  // Once both channels and userId are known, snap to the user's current VC
+  useEffect(() => {
+    if (!discordUserId || voiceChannels.length === 0) return;
+    const userChannel = voiceChannels.find((c) => c.memberIds?.includes(discordUserId));
+    if (userChannel) {
+      setSelectedChannel(userChannel.id);
+    }
+  }, [discordUserId, voiceChannels]);
+
   const loadSounds = async () => {
     try {
       const supabase = createClient();
@@ -121,10 +138,11 @@ export default function SoundsPage() {
     try {
       const res = await axios.get("/api/bot/channels");
       if (res.data?.data) {
-        setVoiceChannels(res.data.data);
-        if (res.data.data.length > 0) {
-          setSelectedChannel(res.data.data[0].id);
-        }
+        const channels: VoiceChannel[] = res.data.data;
+        setVoiceChannels(channels);
+        // Will pick the right default once discordUserId is known (see effect below)
+        const lobby = channels.find((c) => c.name.toLowerCase().includes("lobby"));
+        setSelectedChannel(lobby?.id ?? channels[0]?.id ?? "");
       }
     } catch (error) {
       console.error("Error loading voice channels:", error);
@@ -260,6 +278,62 @@ export default function SoundsPage() {
     }
   };
 
+  // Upload helpers
+  const getAudioDuration = (file: File): Promise<number> =>
+    new Promise((resolve) => {
+      const audio = document.createElement("audio");
+      audio.src = URL.createObjectURL(file);
+      audio.onloadedmetadata = () => { URL.revokeObjectURL(audio.src); resolve(audio.duration); };
+    });
+
+  const handleUploadDrag = (e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation();
+    setDragActive(e.type === "dragenter" || e.type === "dragover");
+  };
+
+  const handleUploadDrop = (e: React.DragEvent) => {
+    e.preventDefault(); e.stopPropagation(); setDragActive(false);
+    const f = e.dataTransfer.files?.[0];
+    if (f?.type.startsWith("audio/")) {
+      setUploadFile(f);
+      if (!uploadName) setUploadName(f.name.replace(/\.[^/.]+$/, ""));
+    }
+  };
+
+  const handleUploadFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) { setUploadFile(f); if (!uploadName) setUploadName(f.name.replace(/\.[^/.]+$/, "")); }
+  };
+
+  const handleUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!uploadFile || !uploadName) { setUploadMsg("Please provide both file and name"); return; }
+    if (uploadFile.size > 15 * 1024 * 1024) { setUploadMsg("File must be under 15MB"); return; }
+    const duration = await getAudioDuration(uploadFile);
+    if (duration > 600) { setUploadMsg("Audio must be under 10 minutes"); return; }
+    setUploading(true); setUploadMsg("");
+    try {
+      const supabase = createClient();
+      const fileName = `${Date.now()}-${uploadFile.name}`;
+      const { error: uploadError } = await supabase.storage.from("sounds").upload(fileName, uploadFile);
+      if (uploadError) throw uploadError;
+      const { data: { publicUrl } } = supabase.storage.from("sounds").getPublicUrl(fileName);
+      const { error: dbError } = await supabase.from("sounds").insert({
+        name: uploadName, file_url: publicUrl, file_size: uploadFile.size,
+        duration: Math.floor(duration), uploaded_by: "user",
+      });
+      if (dbError) throw dbError;
+      setUploadMsg("✅ Uploaded!");
+      setUploadFile(null); setUploadName("");
+      await loadSounds();
+      setTimeout(() => { setUploadOpen(false); setUploadMsg(""); }, 1200);
+    } catch (err: any) {
+      setUploadMsg(`❌ ${err.message}`);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const truncateName = (name: string, maxLength: number = 30) => {
     if (name.length <= maxLength) return name;
     return name.substring(0, maxLength) + "...";
@@ -340,7 +414,7 @@ export default function SoundsPage() {
           </div>
           <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
             <Button
-              onClick={() => (window.location.href = "/upload")}
+              onClick={() => { setUploadOpen(true); setUploadMsg(""); }}
               size="lg"
               className={`${designTokens.components.button} shadow-lg`}
             >
@@ -672,7 +746,7 @@ export default function SoundsPage() {
                       whileTap={{ scale: 0.95 }}
                     >
                       <Button
-                        onClick={() => (window.location.href = "/upload")}
+                        onClick={() => { setUploadOpen(true); setUploadMsg(""); }}
                         size="lg"
                         className={designTokens.components.button}
                       >
@@ -699,6 +773,78 @@ export default function SoundsPage() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Upload Modal */}
+      <AnimatePresence>
+        {uploadOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={(e) => { if (e.target === e.currentTarget) setUploadOpen(false); }}>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.92 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.92 }}
+              className="w-full max-w-lg mx-4 bg-background border border-border rounded-xl shadow-2xl overflow-hidden"
+            >
+              <div className="flex items-center justify-between p-6 border-b border-border">
+                <div>
+                  <h2 className="text-lg font-semibold">Upload Sound</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">Max 15MB · Max 10 minutes</p>
+                </div>
+                <button onClick={() => setUploadOpen(false)} className="p-1.5 rounded-lg hover:bg-muted/60 text-muted-foreground transition-colors">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <form onSubmit={handleUpload} className="p-6 space-y-5">
+                {/* Drag & drop zone */}
+                <div
+                  onDragEnter={handleUploadDrag} onDragOver={handleUploadDrag}
+                  onDragLeave={handleUploadDrag} onDrop={handleUploadDrop}
+                  className={`relative flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed p-8 text-center transition-colors cursor-pointer ${
+                    dragActive ? "border-primary bg-primary/5" : "border-border hover:border-primary/50 hover:bg-muted/30"
+                  }`}
+                  onClick={() => document.getElementById("upload-file-input")?.click()}
+                >
+                  <input id="upload-file-input" type="file" accept="audio/*" className="hidden" onChange={handleUploadFileChange} />
+                  <svg className="w-8 h-8 text-muted-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  {uploadFile ? (
+                    <div>
+                      <p className="text-sm font-medium text-primary">{uploadFile.name}</p>
+                      <p className="text-xs text-muted-foreground">{(uploadFile.size / 1024 / 1024).toFixed(2)} MB</p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-sm font-medium">Drop audio file here</p>
+                      <p className="text-xs text-muted-foreground">or click to browse</p>
+                    </div>
+                  )}
+                </div>
+                {/* Name input */}
+                <div className="space-y-1.5">
+                  <label className="text-sm font-medium">Sound Name</label>
+                  <Input
+                    placeholder="e.g. Airhorn"
+                    value={uploadName}
+                    onChange={(e) => setUploadName(e.target.value)}
+                    required
+                  />
+                </div>
+                {uploadMsg && (
+                  <p className={`text-sm ${uploadMsg.startsWith("✅") ? "text-green-500" : "text-red-500"}`}>{uploadMsg}</p>
+                )}
+                <div className="flex gap-3 justify-end pt-1">
+                  <Button type="button" variant="outline" onClick={() => setUploadOpen(false)} disabled={uploading}>Cancel</Button>
+                  <Button type="submit" disabled={uploading || !uploadFile || !uploadName}>
+                    {uploading ? (
+                      <><div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />Uploading...</>
+                    ) : "Upload"}
+                  </Button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <ConfirmDialog
         isOpen={deleteDialogOpen}
