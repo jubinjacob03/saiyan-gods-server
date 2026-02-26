@@ -14,6 +14,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { designTokens } from "@/lib/design-tokens";
 import { createClient } from "@/lib/supabase";
 
+const OWNER_ROLE_ID = "1473075468088377352";
+
 const container = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.08 } },
@@ -45,6 +47,9 @@ interface PrivateVC {
   index: number;
   memberCount: number;
   members: VCMember[];
+  creatorId: string | null;
+  creatorName: string | null;
+  creatorAvatar: string | null;
 }
 
 function Avatar({
@@ -207,6 +212,7 @@ function MemberSelectModal({
 
 export default function PrivateVCPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [vcs, setVcs] = useState<PrivateVC[]>([]);
   const [allMembers, setAllMembers] = useState<BotMember[]>([]);
   const [loadingVCs, setLoadingVCs] = useState(true);
@@ -218,6 +224,7 @@ export default function PrivateVCPage() {
     vcId: string;
     open: boolean;
   } | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null); // channelId pending confirm
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -249,12 +256,21 @@ export default function PrivateVCPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(({ data: { user } }) => {
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
         const discordId =
           user.identities?.find((i) => i.provider === "discord")
             ?.identity_data?.sub || user.user_metadata?.provider_id || user.id;
         setCurrentUserId(discordId);
+        // Check owner role
+        try {
+          const res = await fetch(`/api/bot/members?userId=${discordId}`);
+          if (res.ok) {
+            const json = await res.json();
+            const roleIds: string[] = json.data?.roleIds ?? [];
+            setIsOwner(roleIds.includes(OWNER_ROLE_ID));
+          }
+        } catch {}
       }
     });
     fetchVCs();
@@ -335,6 +351,30 @@ export default function PrivateVCPage() {
         await fetchVCs();
       } else {
         showToast(json.error || "Failed to add member", "error");
+      }
+    } catch {
+      showToast("Network error", "error");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleForceDelete = async (channelId: string) => {
+    if (!currentUserId) return;
+    setActionLoading(`delete-${channelId}`);
+    try {
+      const res = await fetch(`/api/bot/private-vc/${channelId}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requesterId: currentUserId }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        showToast("Private VC force-deleted");
+        setDeleteConfirm(null);
+        await fetchVCs();
+      } else {
+        showToast(json.error || "Failed to delete VC", "error");
       }
     } catch {
       showToast("Network error", "error");
@@ -543,10 +583,14 @@ export default function PrivateVCPage() {
           >
             {vcs.map((vc) => {
               const isMyVC = vc.members.some((m) => m.id === currentUserId);
+              const isDeleting = actionLoading === `delete-${vc.channelId}`;
+              const pendingDelete = deleteConfirm === vc.channelId;
               return (
                 <motion.div key={vc.channelId} variants={item}>
                   <Card
-                    className={`h-full ${isMyVC ? "border-primary/40 bg-primary/5" : ""}`}
+                    className={`h-full flex flex-col ${
+                      isMyVC ? "border-primary/40 bg-primary/5" : ""
+                    }`}
                   >
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
@@ -584,6 +628,21 @@ export default function PrivateVCPage() {
                           </span>
                         )}
                       </div>
+                      {/* Creator */}
+                      {vc.creatorName && (
+                        <div className="flex items-center gap-1.5 mt-2">
+                          <span className="text-xs text-muted-foreground">Created by</span>
+                          {vc.creatorAvatar && (
+                            <img
+                              src={vc.creatorAvatar}
+                              alt={vc.creatorName}
+                              className="w-4 h-4 rounded-full object-cover"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                            />
+                          )}
+                          <span className="text-xs font-medium">{vc.creatorName}</span>
+                        </div>
+                      )}
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {/* Member list */}
@@ -670,6 +729,56 @@ export default function PrivateVCPage() {
                           </svg>
                           Add Member
                         </Button>
+                      )}
+
+                      {/* Force Delete — owner only */}
+                      {isOwner && (
+                        <div className="pt-1 border-t border-border/50">
+                          {pendingDelete ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-red-500 flex-1">
+                                Kick all members &amp; delete?
+                              </span>
+                              <button
+                                onClick={() => setDeleteConfirm(null)}
+                                disabled={isDeleting}
+                                className="text-xs px-2 py-1 rounded text-muted-foreground hover:bg-muted/60 transition-colors disabled:opacity-50"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={() => handleForceDelete(vc.channelId)}
+                                disabled={isDeleting}
+                                className="text-xs px-2 py-1 rounded bg-red-500/20 text-red-500 hover:bg-red-500/30 transition-colors font-medium disabled:opacity-50 flex items-center gap-1"
+                              >
+                                {isDeleting ? (
+                                  <div className="w-3 h-3 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                                ) : null}
+                                Confirm Delete
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => setDeleteConfirm(vc.channelId)}
+                              className="w-full flex items-center justify-center gap-1.5 text-xs text-red-500 hover:text-red-400 py-1.5 rounded-lg hover:bg-red-500/10 transition-colors font-medium"
+                            >
+                              <svg
+                                className="w-3.5 h-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                              Force Delete
+                            </button>
+                          )}
+                        </div>
                       )}
                     </CardContent>
                   </Card>
