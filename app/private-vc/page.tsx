@@ -54,9 +54,10 @@ function Avatar({
   member: { id: string; avatar: string | null; displayName: string };
   size?: number;
 }) {
-  const src = member.avatar
-    ? `https://cdn.discordapp.com/avatars/${member.id}/${member.avatar}.webp?size=64`
-    : `https://cdn.discordapp.com/embed/avatars/${parseInt(member.id) % 5}.png`;
+  // avatar comes as a full CDN URL from the bot API
+  const src =
+    member.avatar ||
+    `https://cdn.discordapp.com/embed/avatars/${parseInt(member.id) % 5}.png`;
   return (
     <img
       src={src}
@@ -228,7 +229,7 @@ export default function PrivateVCPage() {
       const res = await fetch("/api/bot/private-vc");
       if (res.ok) {
         const json = await res.json();
-        setVcs(json.data || []);
+        setVcs(json.data?.vcs || []);
       }
     } catch {
     } finally {
@@ -241,7 +242,7 @@ export default function PrivateVCPage() {
       const res = await fetch("/api/bot/members");
       if (res.ok) {
         const json = await res.json();
-        setAllMembers(json.data || []);
+        setAllMembers(json.data?.members || []);
       }
     } catch {}
   }, []);
