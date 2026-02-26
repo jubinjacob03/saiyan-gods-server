@@ -6,11 +6,12 @@ const headers = () => ({ Authorization: `Bearer ${KEY}`, "Content-Type": "applic
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { channelId: string } },
+  { params }: { params: Promise<{ channelId: string }> },
 ) {
   try {
+    const { channelId } = await params;
     const body = await request.json();
-    const res = await fetch(`${BOT}/api/private-vc/${params.channelId}`, {
+    const res = await fetch(`${BOT}/api/private-vc/${channelId}`, {
       method: "DELETE",
       headers: headers(),
       body: JSON.stringify(body),
