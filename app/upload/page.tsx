@@ -1,8 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import AppLayout from "@/components/AppLayout";
 import { createClient } from "@/lib/supabase";
+
+// ─── Role constants (must match sounds/page.tsx)
+const MODERATOR_ROLE_ID = "1473075468088377349";
+const MANAGER_ROLE_ID  = "1473075468088377350";
+const OWNER_ROLE_ID    = "1473075468088377352";
+const UPLOAD_ROLES = new Set([MODERATOR_ROLE_ID, MANAGER_ROLE_ID, OWNER_ROLE_ID]);
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +28,33 @@ export default function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [dragActive, setDragActive] = useState(false);
+
+  // ── Permission state
+  const [canUpload, setCanUpload] = useState<boolean | null>(null); // null = checking
+  const [discordUserId, setDiscordUserId] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) { setCanUpload(false); return; }
+        const discordIdentity = user.identities?.find((i) => i.provider === "discord");
+        const id = discordIdentity?.identity_data?.sub || user.id;
+        setDiscordUserId(id);
+        const res = await fetch(`/api/bot/members?userId=${id}`);
+        if (res.ok) {
+          const json = await res.json();
+          const roleIds: string[] = json.data?.roleIds ?? [];
+          setCanUpload(roleIds.some((r) => UPLOAD_ROLES.has(r)));
+        } else {
+          setCanUpload(false);
+        }
+      } catch {
+        setCanUpload(false);
+      }
+    })();
+  }, []);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -90,7 +123,7 @@ export default function UploadPage() {
         file_url: publicUrl,
         file_size: file.size,
         duration: Math.floor(duration),
-        uploaded_by: "user",
+        uploaded_by: discordUserId || "unknown",
       });
 
       if (dbError) throw dbError;
@@ -119,6 +152,50 @@ export default function UploadPage() {
       };
     });
   };
+
+  // ── Role check guards
+  if (canUpload === null) {
+    return (
+      <AppLayout>
+        <div className="flex items-center justify-center py-20">
+          <motion.div animate={{ rotate: 360 }} transition={{ repeat: Infinity, duration: 1, ease: "linear" }}>
+            <svg className="h-10 w-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </motion.div>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!canUpload) {
+    return (
+      <AppLayout>
+        <motion.div
+          className="flex flex-col items-center justify-center py-24 gap-6 text-center"
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+        >
+          <div className="p-6 rounded-full bg-destructive/10">
+            <svg className="h-12 w-12 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+            </svg>
+          </div>
+          <div>
+            <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
+            <p className="text-muted-foreground max-w-sm">
+              Only Moderators, Managers, and the Owner can upload sounds.
+            </p>
+          </div>
+          <a href="/sounds" className="underline text-sm text-muted-foreground hover:text-foreground">
+            ← Back to Sound Library
+          </a>
+        </motion.div>
+      </AppLayout>
+    );
+  }
 
   return (
     <AppLayout>
