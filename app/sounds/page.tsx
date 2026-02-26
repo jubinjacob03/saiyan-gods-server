@@ -305,14 +305,9 @@ function DroppableCategorySection({
   isDefault: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
-  const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <div
-      className="space-y-3"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
+    <div className="space-y-2">
       {/* Section header — droppable zone */}
       <div
         ref={setNodeRef}
@@ -383,18 +378,14 @@ function DroppableCategorySection({
           </div>
         )}
       </div>
-      {/* Sound cards — 2 cols default, expands to 4 cols on category hover */}
+      {/* Sound cards — compact single-column list */}
       {sounds.length > 0 ? (
         <motion.div
           layout
           variants={containerVariants}
           initial="hidden"
           animate="show"
-          className={`grid gap-2 transition-all duration-300 ${
-            isHovered
-              ? "grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-              : "grid-cols-1 sm:grid-cols-2"
-          }`}
+          className="flex flex-col gap-1.5"
         >
           {sounds.map((sound) => (
             <DraggableSoundCard
@@ -1133,38 +1124,44 @@ export default function SoundsPage() {
 
           {/* ── Grouped sound sections ── */}
           {filteredSounds.length > 0 ? (
-            <div className="space-y-10">
-              {categories.map((cat) => (
-                <motion.div
-                  key={cat.id}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <DroppableCategorySection
-                    id={cat.id}
-                    label={cat.name}
-                    sounds={soundsByCategory[cat.id] ?? []}
-                    playing={playing}
-                    deleting={deleting}
-                    discordUserId={discordUserId}
-                    isOwner={isOwner}
-                    onPlay={handlePlay}
-                    onDelete={handleDelete}
-                    formatDuration={formatDuration}
-                    truncateName={truncateName}
-                    isDraggingAny={!!draggingSound}
-                    onEditCategory={() => {
-                      setEditingCategory(cat);
-                      setEditCategoryName(cat.name);
-                    }}
-                    onDeleteCategory={() => {
-                      setDeleteCategoryTarget(cat);
-                      setDeleteCategoryDialogOpen(true);
-                    }}
-                    isDefault={false}
-                  />
-                </motion.div>
-              ))}
+            <div className="space-y-6">
+              {/* Named categories — 2-column grid */}
+              {categories.length > 0 && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {categories.map((cat) => (
+                    <motion.div
+                      key={cat.id}
+                      initial={{ opacity: 0, y: 16 }}
+                      animate={{ opacity: 1, y: 0 }}
+                    >
+                      <DroppableCategorySection
+                        id={cat.id}
+                        label={cat.name}
+                        sounds={soundsByCategory[cat.id] ?? []}
+                        playing={playing}
+                        deleting={deleting}
+                        discordUserId={discordUserId}
+                        isOwner={isOwner}
+                        onPlay={handlePlay}
+                        onDelete={handleDelete}
+                        formatDuration={formatDuration}
+                        truncateName={truncateName}
+                        isDraggingAny={!!draggingSound}
+                        onEditCategory={() => {
+                          setEditingCategory(cat);
+                          setEditCategoryName(cat.name);
+                        }}
+                        onDeleteCategory={() => {
+                          setDeleteCategoryTarget(cat);
+                          setDeleteCategoryDialogOpen(true);
+                        }}
+                        isDefault={false}
+                      />
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+              {/* Uncategorized — always full width */}
               <motion.div
                 initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
