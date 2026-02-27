@@ -373,18 +373,14 @@ function DroppableCategorySection({
           </div>
         )}
       </div>
-      {/* Sound cards — 2-col when collapsed, 4-col when expanded; max 3 rows then scroll */}
+      {/* Sound cards — 2-col layout; max 3 rows then scroll */}
       {sounds.length > 0 ? (
         <div
           className="overflow-y-auto p-px"
           style={{ maxHeight: "calc(3 * 64px + 2 * 6px + 2px)" }}
         >
-          <div
-            className={`grid gap-1.5 pb-px ${
-              isExpanded ? "grid-cols-4" : "grid-cols-2"
-            }`}
-          >
-            {sounds.map((sound) => (
+          <div className="grid gap-1.5 pb-px grid-cols-2">
+            {(isExpanded ? sounds : sounds.slice(0, 2)).map((sound) => (
               <DraggableSoundCard
                 key={sound.id}
                 sound={sound}
@@ -1831,7 +1827,7 @@ export default function SoundsPage() {
                 </div>
               </div>
 
-              <div className="p-6">
+              <div className="p-6 max-h-[calc(100vh-180px)] overflow-y-auto">
                 <form
                   onSubmit={handleUpload}
                   className={designTokens.spacing.cardSection}
