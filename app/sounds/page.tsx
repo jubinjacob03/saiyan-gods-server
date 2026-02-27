@@ -1163,7 +1163,7 @@ export default function SoundsPage() {
                       opacity: expandedCat && expandedCat !== cat.id ? 0 : 1,
                     }}
                     transition={{ duration: 0.28, ease: "easeInOut" }}
-                    className="overflow-hidden min-w-0"
+                    className="overflow-x-hidden min-w-0"
                     initial={{ opacity: 0, y: 16 }}
                   >
                     <DroppableCategorySection
