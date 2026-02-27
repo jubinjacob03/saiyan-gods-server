@@ -1286,12 +1286,12 @@ export default function SoundsPage() {
                     key={cat.id}
                     onMouseEnter={() => setExpandedCat(cat.id)}
                     onMouseLeave={() => setExpandedCat(null)}
-                    className={expandedCat === cat.id ? 'absolute inset-x-0 z-50' : 'relative z-0'}
-                    style={expandedCat === cat.id ? {} : {}}
+                    className={expandedCat === cat.id ? 'col-span-2 z-50' : 'z-0'}
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ 
-                      opacity: 1, 
-                      y: 0
+                      opacity: expandedCat && expandedCat !== cat.id ? 0 : 1, 
+                      y: 0,
+                      height: expandedCat && expandedCat !== cat.id ? 0 : 'auto'
                     }}
                     transition={{ duration: 0.3 }}
                   >
