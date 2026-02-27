@@ -193,9 +193,34 @@ function DraggableSoundCard({
             whileTap={{ scale: 0.9 }}
             onClick={() => onPlay(sound)}
             disabled={playing === sound.id}
-            className={`p-1.5 rounded-lg shrink-0 transition-colors disabled:opacity-60 ${
+            animate={
               playing === sound.id
-                ? "bg-primary/20 text-primary"
+                ? {
+                    backgroundColor: [
+                      "rgba(59, 130, 246, 0.2)",
+                      "rgba(59, 130, 246, 0.4)",
+                      "rgba(59, 130, 246, 0.2)",
+                    ],
+                    boxShadow: [
+                      "0 0 0 0 rgba(59, 130, 246, 0.4)",
+                      "0 0 0 4px rgba(59, 130, 246, 0)",
+                      "0 0 0 0 rgba(59, 130, 246, 0.4)",
+                    ],
+                  }
+                : {}
+            }
+            transition={
+              playing === sound.id
+                ? {
+                    duration: 1.5,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }
+                : { duration: 0.2 }
+            }
+            className={`p-1.5 rounded-lg shrink-0 transition-colors ${
+              playing === sound.id
+                ? "bg-blue-500/20 text-blue-500"
                 : "hover:bg-primary/10 text-muted-foreground hover:text-primary"
             }`}
             title="Play in Voice"
@@ -205,8 +230,12 @@ function DraggableSoundCard({
                 className="h-4 w-4"
                 fill="currentColor"
                 viewBox="0 0 24 24"
-                animate={{ opacity: [1, 0.4, 1] }}
-                transition={{ repeat: Infinity, duration: 1.2 }}
+                animate={{ scale: [1, 1.1, 1] }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 1.5,
+                  ease: "easeInOut",
+                }}
               >
                 <path d="M8 5v14l11-7z" />
               </motion.svg>
@@ -302,14 +331,17 @@ function DroppableCategorySection({
   const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <div 
-      ref={setNodeRef} 
+    <motion.div
+      ref={setNodeRef}
       className="space-y-2"
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
     >
       {/* Section header — visual drop indicator */}
-      <div
+      <motion.div
         className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all duration-200 ${
           isOver
             ? "bg-primary/10 border-primary/40 shadow-inner"
@@ -317,6 +349,8 @@ function DroppableCategorySection({
               ? "border-dashed border-primary/30 bg-muted/30"
               : "border-border/40 bg-muted/20"
         }`}
+        whileHover={{ scale: 1.01 }}
+        transition={{ duration: 0.2 }}
       >
         <div
           className={`w-2 h-2 rounded-full ${isOver ? "bg-primary animate-pulse" : "bg-muted-foreground/40"}`}
@@ -376,29 +410,49 @@ function DroppableCategorySection({
             )}
           </div>
         )}
-      </div>
+      </motion.div>
       {/* Sound cards — 2-col layout; max 3 rows then scroll */}
       {sounds.length > 0 ? (
-        <div
+        <motion.div
           className="overflow-y-auto p-px"
           style={{ maxHeight: "calc(3 * 64px + 2 * 6px + 2px)" }}
+          initial={false}
+          animate={{
+            maxHeight: isHovered
+              ? "calc(10 * 64px + 9 * 6px + 2px)"
+              : "calc(3 * 64px + 2 * 6px + 2px)",
+          }}
+          transition={{ duration: 0.3, ease: "easeInOut" }}
         >
           <div className="grid gap-1.5 pb-px grid-cols-2">
-            {(isHovered ? sounds : sounds.slice(0, 2)).map((sound) => (
-              <DraggableSoundCard
-                key={sound.id}
-                sound={sound}
-                playing={playing}
-                deleting={deleting}
-                canDelete={isOwner || sound.uploaded_by === discordUserId}
-                onPlay={onPlay}
-                onDelete={onDelete}
-                formatDuration={formatDuration}
-                truncateName={truncateName}
-              />
-            ))}
+            <AnimatePresence mode="popLayout">
+              {(isHovered ? sounds : sounds.slice(0, 2)).map((sound, index) => (
+                <motion.div
+                  key={sound.id}
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{
+                    duration: 0.2,
+                    delay: isHovered ? index * 0.03 : 0,
+                    ease: "easeOut",
+                  }}
+                >
+                  <DraggableSoundCard
+                    sound={sound}
+                    playing={playing}
+                    deleting={deleting}
+                    canDelete={isOwner || sound.uploaded_by === discordUserId}
+                    onPlay={onPlay}
+                    onDelete={onDelete}
+                    formatDuration={formatDuration}
+                    truncateName={truncateName}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
-        </div>
+        </motion.div>
       ) : (
         <div
           className={`rounded-xl border-2 border-dashed p-8 text-center transition-colors duration-200 ${
@@ -412,7 +466,7 @@ function DroppableCategorySection({
           </p>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }
 
@@ -448,7 +502,7 @@ export default function SoundsPage() {
     useState<Category | null>(null);
   const [deleteCategoryDialogOpen, setDeleteCategoryDialogOpen] =
     useState(false);
-  
+
   // ── Move all sounds
   const [moveAllDialogOpen, setMoveAllDialogOpen] = useState(false);
   const [moveAllSource, setMoveAllSource] = useState("");
@@ -820,7 +874,8 @@ export default function SoundsPage() {
             [fileData.id]: "Saving to database...",
           }));
 
-          const categoryId = uploadCategory === "uncategorized" ? null : uploadCategory;
+          const categoryId =
+            uploadCategory === "uncategorized" ? null : uploadCategory;
           const { error: dbError } = await supabase.from("sounds").insert({
             name: fileData.name,
             file_url: publicUrl,
@@ -943,23 +998,27 @@ export default function SoundsPage() {
     if (!moveAllSource || !moveAllTarget) return;
     try {
       const supabase = createClient();
-      const sourceCatId = moveAllSource === "uncategorized" ? null : moveAllSource;
-      const targetCatId = moveAllTarget === "uncategorized" ? null : moveAllTarget;
-      
+      const sourceCatId =
+        moveAllSource === "uncategorized" ? null : moveAllSource;
+      const targetCatId =
+        moveAllTarget === "uncategorized" ? null : moveAllTarget;
+
       const { error } = await supabase
         .from("sounds")
         .update({ category_id: targetCatId })
         .eq("category_id", sourceCatId);
-      
+
       if (error) throw error;
-      
+
       // Update local state
       setSounds((prev) =>
         prev.map((s) =>
-          s.category_id === sourceCatId ? { ...s, category_id: targetCatId } : s,
+          s.category_id === sourceCatId
+            ? { ...s, category_id: targetCatId }
+            : s,
         ),
       );
-      
+
       setMoveAllDialogOpen(false);
       setMoveAllSource("");
       setMoveAllTarget("");
@@ -1834,17 +1893,23 @@ export default function SoundsPage() {
 
               <div className="p-6 space-y-4">
                 <div className="space-y-2">
-                  <label className={designTokens.typography.body}>From Category</label>
+                  <label className={designTokens.typography.body}>
+                    From Category
+                  </label>
                   <select
                     value={moveAllSource}
                     onChange={(e) => setMoveAllSource(e.target.value)}
                     className={`${designTokens.components.input} w-full`}
                   >
                     <option value="">Select source category...</option>
-                    <option value="uncategorized">Uncategorized ({soundsByCategory["uncategorized"]?.length ?? 0} sounds)</option>
+                    <option value="uncategorized">
+                      Uncategorized (
+                      {soundsByCategory["uncategorized"]?.length ?? 0} sounds)
+                    </option>
                     {categories.map((cat) => (
                       <option key={cat.id} value={cat.id}>
-                        {cat.name} ({soundsByCategory[cat.id]?.length ?? 0} sounds)
+                        {cat.name} ({soundsByCategory[cat.id]?.length ?? 0}{" "}
+                        sounds)
                       </option>
                     ))}
                   </select>
@@ -1867,7 +1932,9 @@ export default function SoundsPage() {
                 </div>
 
                 <div className="space-y-2">
-                  <label className={designTokens.typography.body}>To Category</label>
+                  <label className={designTokens.typography.body}>
+                    To Category
+                  </label>
                   <select
                     value={moveAllTarget}
                     onChange={(e) => setMoveAllTarget(e.target.value)}
@@ -1876,26 +1943,47 @@ export default function SoundsPage() {
                     <option value="">Select target category...</option>
                     <option value="uncategorized">Uncategorized</option>
                     {categories.map((cat) => (
-                      <option key={cat.id} value={cat.id} disabled={cat.id === moveAllSource}>
+                      <option
+                        key={cat.id}
+                        value={cat.id}
+                        disabled={cat.id === moveAllSource}
+                      >
                         {cat.name}
                       </option>
                     ))}
                   </select>
                 </div>
 
-                {moveAllSource && moveAllTarget && moveAllSource !== moveAllTarget && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="p-3 bg-primary/10 border border-primary/30 rounded-lg text-sm"
-                  >
-                    <p className="text-foreground/80">
-                      This will move <strong>{soundsByCategory[moveAllSource]?.length ?? 0} sounds</strong> from{" "}
-                      <strong>{moveAllSource === "uncategorized" ? "Uncategorized" : categories.find(c => c.id === moveAllSource)?.name}</strong> to{" "}
-                      <strong>{moveAllTarget === "uncategorized" ? "Uncategorized" : categories.find(c => c.id === moveAllTarget)?.name}</strong>
-                    </p>
-                  </motion.div>
-                )}
+                {moveAllSource &&
+                  moveAllTarget &&
+                  moveAllSource !== moveAllTarget && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="p-3 bg-primary/10 border border-primary/30 rounded-lg text-sm"
+                    >
+                      <p className="text-foreground/80">
+                        This will move{" "}
+                        <strong>
+                          {soundsByCategory[moveAllSource]?.length ?? 0} sounds
+                        </strong>{" "}
+                        from{" "}
+                        <strong>
+                          {moveAllSource === "uncategorized"
+                            ? "Uncategorized"
+                            : categories.find((c) => c.id === moveAllSource)
+                                ?.name}
+                        </strong>{" "}
+                        to{" "}
+                        <strong>
+                          {moveAllTarget === "uncategorized"
+                            ? "Uncategorized"
+                            : categories.find((c) => c.id === moveAllTarget)
+                                ?.name}
+                        </strong>
+                      </p>
+                    </motion.div>
+                  )}
 
                 <div className="flex gap-2 pt-2">
                   <Button
@@ -1911,7 +1999,11 @@ export default function SoundsPage() {
                   </Button>
                   <Button
                     onClick={handleMoveAllSounds}
-                    disabled={!moveAllSource || !moveAllTarget || moveAllSource === moveAllTarget}
+                    disabled={
+                      !moveAllSource ||
+                      !moveAllTarget ||
+                      moveAllSource === moveAllTarget
+                    }
                     className="flex-1"
                   >
                     Move All
@@ -2080,7 +2172,9 @@ export default function SoundsPage() {
                         </option>
                       ))}
                     </select>
-                    <p className={`${designTokens.typography.small} text-muted-foreground/70`}>
+                    <p
+                      className={`${designTokens.typography.small} text-muted-foreground/70`}
+                    >
                       Choose which category to upload sounds to
                     </p>
                   </motion.div>

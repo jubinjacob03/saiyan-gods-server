@@ -37,7 +37,9 @@ export default function UploadPage() {
   const [uploading, setUploading] = useState(false);
   const [message, setMessage] = useState("");
   const [dragActive, setDragActive] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<Record<string, string>>({});
+  const [uploadProgress, setUploadProgress] = useState<Record<string, string>>(
+    {},
+  );
 
   // ── Permission state
   const [canUpload, setCanUpload] = useState<boolean | null>(null); // null = checking
@@ -90,7 +92,7 @@ export default function UploadPage() {
 
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const droppedFiles = Array.from(e.dataTransfer.files).filter((f) =>
-        f.type.startsWith("audio/")
+        f.type.startsWith("audio/"),
       );
       addFiles(droppedFiles);
     }
@@ -111,7 +113,7 @@ export default function UploadPage() {
 
   const updateFileName = (id: string, newName: string) => {
     setFiles((prev) =>
-      prev.map((f) => (f.id === id ? { ...f, name: newName } : f))
+      prev.map((f) => (f.id === id ? { ...f, name: newName } : f)),
     );
   };
 
@@ -202,7 +204,7 @@ export default function UploadPage() {
       }
 
       setMessage(
-        `✅ ${successCount} uploaded successfully${failCount > 0 ? `, ${failCount} failed` : ""}`
+        `✅ ${successCount} uploaded successfully${failCount > 0 ? `, ${failCount} failed` : ""}`,
       );
 
       setTimeout(() => {
@@ -508,7 +510,9 @@ export default function UploadPage() {
                         className="overflow-hidden"
                       >
                         <div className="flex items-center justify-between mb-2">
-                          <p className={`${designTokens.typography.small} font-medium`}>
+                          <p
+                            className={`${designTokens.typography.small} font-medium`}
+                          >
                             {files.length} file(s) selected
                           </p>
                           <Button
@@ -522,87 +526,107 @@ export default function UploadPage() {
                           </Button>
                         </div>
                         <div className="max-h-96 overflow-y-auto space-y-2 pr-1">
-                        {files.map((fileData) => (
-                          <motion.div
-                            key={fileData.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 20 }}
-                            className="p-3 rounded-lg bg-primary/5 border border-primary/20"
-                          >
-                            <div className="flex items-start gap-3">
-                              <div
-                                className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.primary} mt-1`}
-                              >
-                                <svg
-                                  className={
-                                    designTokens.icons.sm +
-                                    " " +
-                                    designTokens.iconColors.primary
-                                  }
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
+                          {files.map((fileData) => (
+                            <motion.div
+                              key={fileData.id}
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: 20 }}
+                              className="p-3 rounded-lg bg-primary/5 border border-primary/20"
+                            >
+                              <div className="flex items-start gap-3">
+                                <div
+                                  className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.primary} mt-1`}
                                 >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
-                                  />
-                                </svg>
-                              </div>
-                              <div className="flex-1 min-w-0 space-y-2">
-                                <Input
-                                  value={fileData.name}
-                                  onChange={(e) =>
-                                    updateFileName(fileData.id, e.target.value)
-                                  }
-                                  placeholder="Sound name"
-                                  className="h-8 text-sm"
-                                  disabled={uploading}
-                                />
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                  <span>{fileData.file.name}</span>
-                                  <span>•</span>
-                                  <span>
-                                    {(fileData.file.size / 1024 / 1024).toFixed(2)} MB
-                                  </span>
-                                  {uploadProgress[fileData.id] && (
-                                    <>
-                                      <span>•</span>
-                                      <span className={uploadProgress[fileData.id].includes('✅') ? 'text-green-600' : uploadProgress[fileData.id].includes('❌') ? 'text-red-600' : ''}>
-                                        {uploadProgress[fileData.id]}
-                                      </span>
-                                    </>
-                                  )}
+                                  <svg
+                                    className={
+                                      designTokens.icons.sm +
+                                      " " +
+                                      designTokens.iconColors.primary
+                                    }
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                                    />
+                                  </svg>
                                 </div>
-                              </div>
-                              <motion.button
-                                type="button"
-                                onClick={() => removeFile(fileData.id)}
-                                whileHover={{ scale: 1.1 }}
-                                whileTap={{ scale: 0.9 }}
-                                disabled={uploading}
-                                className="p-1 rounded-lg hover:bg-destructive/20 text-destructive transition-colors disabled:opacity-50"
-                              >
-                                <svg
-                                  className={designTokens.icons.sm}
-                                  fill="none"
-                                  viewBox="0 0 24 24"
-                                  stroke="currentColor"
-                                >
-                                  <path
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                    strokeWidth={2}
-                                    d="M6 18L18 6M6 6l12 12"
+                                <div className="flex-1 min-w-0 space-y-2">
+                                  <Input
+                                    value={fileData.name}
+                                    onChange={(e) =>
+                                      updateFileName(
+                                        fileData.id,
+                                        e.target.value,
+                                      )
+                                    }
+                                    placeholder="Sound name"
+                                    className="h-8 text-sm"
+                                    disabled={uploading}
                                   />
-                                </svg>
-                              </motion.button>
-                            </div>
-                          </motion.div>
-                        ))}
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                    <span>{fileData.file.name}</span>
+                                    <span>•</span>
+                                    <span>
+                                      {(
+                                        fileData.file.size /
+                                        1024 /
+                                        1024
+                                      ).toFixed(2)}{" "}
+                                      MB
+                                    </span>
+                                    {uploadProgress[fileData.id] && (
+                                      <>
+                                        <span>•</span>
+                                        <span
+                                          className={
+                                            uploadProgress[
+                                              fileData.id
+                                            ].includes("✅")
+                                              ? "text-green-600"
+                                              : uploadProgress[
+                                                    fileData.id
+                                                  ].includes("❌")
+                                                ? "text-red-600"
+                                                : ""
+                                          }
+                                        >
+                                          {uploadProgress[fileData.id]}
+                                        </span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                                <motion.button
+                                  type="button"
+                                  onClick={() => removeFile(fileData.id)}
+                                  whileHover={{ scale: 1.1 }}
+                                  whileTap={{ scale: 0.9 }}
+                                  disabled={uploading}
+                                  className="p-1 rounded-lg hover:bg-destructive/20 text-destructive transition-colors disabled:opacity-50"
+                                >
+                                  <svg
+                                    className={designTokens.icons.sm}
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M6 18L18 6M6 6l12 12"
+                                    />
+                                  </svg>
+                                </motion.button>
+                              </div>
+                            </motion.div>
+                          ))}
                         </div>
                       </motion.div>
                     )}
@@ -660,7 +684,10 @@ export default function UploadPage() {
                             d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
                           />
                         </svg>
-                        Upload {files.length > 0 ? `${files.length} Sound${files.length > 1 ? 's' : ''}` : 'Sounds'}
+                        Upload{" "}
+                        {files.length > 0
+                          ? `${files.length} Sound${files.length > 1 ? "s" : ""}`
+                          : "Sounds"}
                       </span>
                     )}
                   </Button>
