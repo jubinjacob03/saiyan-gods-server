@@ -375,10 +375,10 @@ function DroppableCategorySection({
       {/* Sound cards — 2-col when collapsed, 4-col when expanded; max 3 rows then scroll */}
       {sounds.length > 0 ? (
         <div
-          className={`grid gap-1.5 overflow-y-auto ${
+          className={`grid gap-1.5 overflow-y-auto pb-1 ${
             isExpanded ? "grid-cols-4" : "grid-cols-2"
           }`}
-          style={{ maxHeight: "calc(3 * (52px + 6px))" }}
+          style={{ maxHeight: "calc(3 * (58px + 6px))" }}
         >
           {sounds.map((sound) => (
             <DraggableSoundCard
@@ -1154,7 +1154,7 @@ export default function SoundsPage() {
                       opacity: expandedCat && expandedCat !== cat.id ? 0 : 1,
                     }}
                     transition={{ duration: 0.28, ease: "easeInOut" }}
-                    className="overflow-hidden shrink-0"
+                    className="overflow-hidden min-w-0"
                     initial={{ opacity: 0, y: 16 }}
                   >
                     <DroppableCategorySection
