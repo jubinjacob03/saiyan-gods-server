@@ -281,7 +281,6 @@ function DroppableCategorySection({
   onEditCategory,
   onDeleteCategory,
   isDefault,
-  isExpanded,
 }: {
   id: string;
   label: string;
@@ -298,12 +297,17 @@ function DroppableCategorySection({
   onEditCategory?: () => void;
   onDeleteCategory?: () => void;
   isDefault: boolean;
-  isExpanded: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
-    <div ref={setNodeRef} className="space-y-2">
+    <div 
+      ref={setNodeRef} 
+      className="space-y-2"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       {/* Section header — visual drop indicator */}
       <div
         className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all duration-200 ${
@@ -380,7 +384,7 @@ function DroppableCategorySection({
           style={{ maxHeight: "calc(3 * 64px + 2 * 6px + 2px)" }}
         >
           <div className="grid gap-1.5 pb-px grid-cols-2">
-            {(isExpanded ? sounds : sounds.slice(0, 2)).map((sound) => (
+            {(isHovered ? sounds : sounds.slice(0, 2)).map((sound) => (
               <DraggableSoundCard
                 key={sound.id}
                 sound={sound}
@@ -444,6 +448,11 @@ export default function SoundsPage() {
     useState<Category | null>(null);
   const [deleteCategoryDialogOpen, setDeleteCategoryDialogOpen] =
     useState(false);
+  
+  // ── Move all sounds
+  const [moveAllDialogOpen, setMoveAllDialogOpen] = useState(false);
+  const [moveAllSource, setMoveAllSource] = useState("");
+  const [moveAllTarget, setMoveAllTarget] = useState("");
 
   // ── Upload modal
   interface FileWithName {
@@ -459,11 +468,10 @@ export default function SoundsPage() {
     {},
   );
   const [dragActive, setDragActive] = useState(false);
+  const [uploadCategory, setUploadCategory] = useState("uncategorized");
 
   // ── DnD
   const [draggingSound, setDraggingSound] = useState<Sound | null>(null);
-  // ── Category hover-expand
-  const [expandedCat, setExpandedCat] = useState<string | null>(null);
 
   const guildId = process.env.NEXT_PUBLIC_DISCORD_GUILD_ID!;
   const botSocket = useRef<BotSocket | null>(null);
@@ -812,12 +820,14 @@ export default function SoundsPage() {
             [fileData.id]: "Saving to database...",
           }));
 
+          const categoryId = uploadCategory === "uncategorized" ? null : uploadCategory;
           const { error: dbError } = await supabase.from("sounds").insert({
             name: fileData.name,
             file_url: publicUrl,
             file_size: fileData.file.size,
             duration: Math.floor(duration),
             uploaded_by: discordUserId || "unknown",
+            category_id: categoryId,
           });
 
           if (dbError) throw dbError;
@@ -846,6 +856,7 @@ export default function SoundsPage() {
         setUploadMsg("");
         setUploadFiles([]);
         setUploadProgress({});
+        setUploadCategory("uncategorized");
       }, 2000);
     } catch (err: unknown) {
       setUploadMsg(
@@ -925,6 +936,35 @@ export default function SoundsPage() {
       console.error("Error deleting category:", err);
     } finally {
       setDeleteCategoryTarget(null);
+    }
+  };
+
+  const handleMoveAllSounds = async () => {
+    if (!moveAllSource || !moveAllTarget) return;
+    try {
+      const supabase = createClient();
+      const sourceCatId = moveAllSource === "uncategorized" ? null : moveAllSource;
+      const targetCatId = moveAllTarget === "uncategorized" ? null : moveAllTarget;
+      
+      const { error } = await supabase
+        .from("sounds")
+        .update({ category_id: targetCatId })
+        .eq("category_id", sourceCatId);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setSounds((prev) =>
+        prev.map((s) =>
+          s.category_id === sourceCatId ? { ...s, category_id: targetCatId } : s,
+        ),
+      );
+      
+      setMoveAllDialogOpen(false);
+      setMoveAllSource("");
+      setMoveAllTarget("");
+    } catch (err) {
+      console.error("Error moving sounds:", err);
     }
   };
 
@@ -1251,7 +1291,6 @@ export default function SoundsPage() {
                     onEditCategory={cat.onEdit}
                     onDeleteCategory={cat.onDelete}
                     isDefault={cat.isDefault}
-                    isExpanded={false}
                   />
                 ))}
               </div>
@@ -1282,30 +1321,24 @@ export default function SoundsPage() {
                     onDelete: undefined,
                   },
                 ].map((cat, index) => (
-                  <div
+                  <DroppableCategorySection
                     key={cat.id}
-                    onMouseEnter={() => setExpandedCat(cat.id)}
-                    onMouseLeave={() => setExpandedCat(null)}
-                  >
-                    <DroppableCategorySection
-                      id={cat.id}
-                      label={cat.label}
-                      sounds={cat.sounds}
-                      playing={playing}
-                      deleting={deleting}
-                      discordUserId={discordUserId}
-                      isOwner={isOwner}
-                      onPlay={handlePlay}
-                      onDelete={handleDelete}
-                      formatDuration={formatDuration}
-                      truncateName={truncateName}
-                      isDraggingAny={!!draggingSound}
-                      onEditCategory={cat.onEdit}
-                      onDeleteCategory={cat.onDelete}
-                      isDefault={cat.isDefault}
-                      isExpanded={expandedCat === cat.id}
-                    />
-                  </div>
+                    id={cat.id}
+                    label={cat.label}
+                    sounds={cat.sounds}
+                    playing={playing}
+                    deleting={deleting}
+                    discordUserId={discordUserId}
+                    isOwner={isOwner}
+                    onPlay={handlePlay}
+                    onDelete={handleDelete}
+                    formatDuration={formatDuration}
+                    truncateName={truncateName}
+                    isDraggingAny={!!draggingSound}
+                    onEditCategory={cat.onEdit}
+                    onDeleteCategory={cat.onDelete}
+                    isDefault={cat.isDefault}
+                  />
                 ))}
               </div>
             </div>
@@ -1698,6 +1731,192 @@ export default function SoundsPage() {
                   </svg>
                   Deleting a category moves all its sounds to Uncategorized.
                 </p>
+
+                {/* Move All Sounds */}
+                <div className="space-y-3 pt-4 border-t border-border/40">
+                  <label
+                    className={`${designTokens.typography.body} font-medium flex items-center gap-2`}
+                  >
+                    <svg
+                      className="w-4 h-4 text-primary"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                      />
+                    </svg>
+                    Move All Sounds
+                  </label>
+                  <p className="text-xs text-muted-foreground/70">
+                    Move all sounds from one category to another
+                  </p>
+                  <Button
+                    onClick={() => setMoveAllDialogOpen(true)}
+                    variant="outline"
+                    className="w-full"
+                  >
+                    <svg
+                      className="w-4 h-4 mr-2"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                      />
+                    </svg>
+                    Move Sounds Between Categories
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Move All Sounds Dialog */}
+      <AnimatePresence>
+        {moveAllDialogOpen && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setMoveAllDialogOpen(false);
+                setMoveAllSource("");
+                setMoveAllTarget("");
+              }
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.2 }}
+              className="w-full max-w-md bg-background rounded-xl shadow-2xl overflow-hidden"
+            >
+              <div className="p-6 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.primary}`}
+                  >
+                    <svg
+                      className={`${designTokens.icons.md} ${designTokens.iconColors.primary}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h2 className={designTokens.typography.h2}>
+                      Move All Sounds
+                    </h2>
+                    <p className={designTokens.typography.smallMuted}>
+                      Transfer all sounds between categories
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div className="space-y-2">
+                  <label className={designTokens.typography.body}>From Category</label>
+                  <select
+                    value={moveAllSource}
+                    onChange={(e) => setMoveAllSource(e.target.value)}
+                    className={`${designTokens.components.input} w-full`}
+                  >
+                    <option value="">Select source category...</option>
+                    <option value="uncategorized">Uncategorized ({soundsByCategory["uncategorized"]?.length ?? 0} sounds)</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id}>
+                        {cat.name} ({soundsByCategory[cat.id]?.length ?? 0} sounds)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex items-center justify-center">
+                  <svg
+                    className="w-5 h-5 text-muted-foreground"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 14l-7 7m0 0l-7-7m7 7V3"
+                    />
+                  </svg>
+                </div>
+
+                <div className="space-y-2">
+                  <label className={designTokens.typography.body}>To Category</label>
+                  <select
+                    value={moveAllTarget}
+                    onChange={(e) => setMoveAllTarget(e.target.value)}
+                    className={`${designTokens.components.input} w-full`}
+                  >
+                    <option value="">Select target category...</option>
+                    <option value="uncategorized">Uncategorized</option>
+                    {categories.map((cat) => (
+                      <option key={cat.id} value={cat.id} disabled={cat.id === moveAllSource}>
+                        {cat.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {moveAllSource && moveAllTarget && moveAllSource !== moveAllTarget && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 bg-primary/10 border border-primary/30 rounded-lg text-sm"
+                  >
+                    <p className="text-foreground/80">
+                      This will move <strong>{soundsByCategory[moveAllSource]?.length ?? 0} sounds</strong> from{" "}
+                      <strong>{moveAllSource === "uncategorized" ? "Uncategorized" : categories.find(c => c.id === moveAllSource)?.name}</strong> to{" "}
+                      <strong>{moveAllTarget === "uncategorized" ? "Uncategorized" : categories.find(c => c.id === moveAllTarget)?.name}</strong>
+                    </p>
+                  </motion.div>
+                )}
+
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setMoveAllDialogOpen(false);
+                      setMoveAllSource("");
+                      setMoveAllTarget("");
+                    }}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleMoveAllSounds}
+                    disabled={!moveAllSource || !moveAllTarget || moveAllSource === moveAllTarget}
+                    className="flex-1"
+                  >
+                    Move All
+                  </Button>
+                </div>
               </div>
             </motion.div>
           </div>
@@ -1824,6 +2043,48 @@ export default function SoundsPage() {
                   onSubmit={handleUpload}
                   className={designTokens.spacing.cardSection}
                 >
+                  {/* Category Selection */}
+                  <motion.div
+                    className={designTokens.spacing.inputGroup}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.02 }}
+                  >
+                    <label
+                      className={`${designTokens.typography.body} flex items-center gap-2`}
+                    >
+                      <svg
+                        className={`${designTokens.icons.sm} ${designTokens.iconColors.muted}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"
+                        />
+                      </svg>
+                      Upload to Category
+                    </label>
+                    <select
+                      value={uploadCategory}
+                      onChange={(e) => setUploadCategory(e.target.value)}
+                      className={`${designTokens.components.input} w-full`}
+                    >
+                      <option value="uncategorized">Uncategorized</option>
+                      {categories.map((cat) => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                    <p className={`${designTokens.typography.small} text-muted-foreground/70`}>
+                      Choose which category to upload sounds to
+                    </p>
+                  </motion.div>
+
                   <motion.div
                     className={designTokens.spacing.inputGroup}
                     initial={{ opacity: 0, x: -20 }}
