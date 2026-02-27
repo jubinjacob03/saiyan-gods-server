@@ -1257,7 +1257,7 @@ export default function SoundsPage() {
               </div>
 
               {/* Desktop: 2-column grid with hover-expand */}
-              <div className="hidden md:grid md:grid-cols-2 gap-4 relative">
+              <div className="hidden md:grid md:grid-cols-2 gap-4">
                 {[
                   ...categories.map((cat) => ({
                     id: cat.id,
@@ -1282,18 +1282,10 @@ export default function SoundsPage() {
                     onDelete: undefined,
                   },
                 ].map((cat, index) => (
-                  <motion.div
+                  <div
                     key={cat.id}
                     onMouseEnter={() => setExpandedCat(cat.id)}
                     onMouseLeave={() => setExpandedCat(null)}
-                    className={expandedCat === cat.id ? 'col-span-2 z-50' : 'z-0'}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ 
-                      opacity: expandedCat && expandedCat !== cat.id ? 0 : 1, 
-                      y: 0,
-                      height: expandedCat && expandedCat !== cat.id ? 0 : 'auto'
-                    }}
-                    transition={{ duration: 0.3 }}
                   >
                     <DroppableCategorySection
                       id={cat.id}
@@ -1313,7 +1305,7 @@ export default function SoundsPage() {
                       isDefault={cat.isDefault}
                       isExpanded={expandedCat === cat.id}
                     />
-                  </motion.div>
+                  </div>
                 ))}
               </div>
             </div>
