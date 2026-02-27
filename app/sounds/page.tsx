@@ -1130,15 +1130,21 @@ export default function SoundsPage() {
           {filteredSounds.length > 0 ? (
             <div className="space-y-6">
               {/* All categories (named + uncategorized) side by side; hover expands */}
-              <div className="flex gap-4 items-start overflow-hidden">
+              <div className="flex gap-4 items-start">
                 {[
                   ...categories.map((cat) => ({
                     id: cat.id,
                     label: cat.name,
                     isDefault: false as const,
                     sounds: soundsByCategory[cat.id] ?? [],
-                    onEdit: () => { setEditingCategory(cat); setEditCategoryName(cat.name); },
-                    onDelete: () => { setDeleteCategoryTarget(cat); setDeleteCategoryDialogOpen(true); },
+                    onEdit: () => {
+                      setEditingCategory(cat);
+                      setEditCategoryName(cat.name);
+                    },
+                    onDelete: () => {
+                      setDeleteCategoryTarget(cat);
+                      setDeleteCategoryDialogOpen(true);
+                    },
                   })),
                   {
                     id: "uncategorized",
@@ -1158,8 +1164,8 @@ export default function SoundsPage() {
                         expandedCat === cat.id
                           ? "100%"
                           : expandedCat
-                          ? "0%"
-                          : "50%",
+                            ? "0%"
+                            : "50%",
                       opacity: expandedCat && expandedCat !== cat.id ? 0 : 1,
                     }}
                     transition={{ duration: 0.28, ease: "easeInOut" }}
