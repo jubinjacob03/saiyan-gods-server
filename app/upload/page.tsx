@@ -505,7 +505,7 @@ export default function UploadPage() {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="overflow-hidden space-y-2"
+                        className="overflow-hidden"
                       >
                         <div className="flex items-center justify-between mb-2">
                           <p className={`${designTokens.typography.small} font-medium`}>
@@ -521,6 +521,7 @@ export default function UploadPage() {
                             Clear all
                           </Button>
                         </div>
+                        <div className="max-h-96 overflow-y-auto space-y-2 pr-1">
                         {files.map((fileData) => (
                           <motion.div
                             key={fileData.id}
@@ -602,6 +603,7 @@ export default function UploadPage() {
                             </div>
                           </motion.div>
                         ))}
+                        </div>
                       </motion.div>
                     )}
                   </AnimatePresence>
