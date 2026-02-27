@@ -112,9 +112,7 @@ function DraggableSoundCard({
       className={isDragging && !overlay ? "opacity-40" : undefined}
     >
       <Card
-        className={`${designTokens.cards.elevated} hover:shadow-xl transition-all duration-200${
-          overlay ? " shadow-2xl ring-2 ring-primary/50" : ""
-        }`}
+        className={`border border-border/60 shadow-sm hover:shadow-md hover:border-border transition-all duration-150${overlay ? " shadow-2xl ring-2 ring-primary/50" : ""}`}
       >
         <div className="flex items-center gap-2 px-3 py-2.5">
           {/* Drag handle */}
@@ -374,13 +372,13 @@ function DroppableCategorySection({
           </div>
         )}
       </div>
-      {/* Sound cards — 2-col grid; more cols when the category is expanded */}
+      {/* Sound cards — 2-col when collapsed, 4-col when expanded; max 3 rows then scroll */}
       {sounds.length > 0 ? (
-        <div className={`grid gap-1.5 ${
-            isExpanded
-              ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
-              : "grid-cols-2"
+        <div
+          className={`grid gap-1.5 overflow-y-auto ${
+            isExpanded ? "grid-cols-4" : "grid-cols-2"
           }`}
+          style={{ maxHeight: "calc(3 * (52px + 6px))" }}
         >
           {sounds.map((sound) => (
             <DraggableSoundCard
