@@ -375,24 +375,28 @@ function DroppableCategorySection({
       {/* Sound cards — 2-col when collapsed, 4-col when expanded; max 3 rows then scroll */}
       {sounds.length > 0 ? (
         <div
-          className={`grid gap-1.5 overflow-y-auto pb-1 ${
-            isExpanded ? "grid-cols-4" : "grid-cols-2"
-          }`}
-          style={{ maxHeight: "calc(3 * (58px + 6px))" }}
+          className="overflow-y-auto"
+          style={{ maxHeight: "calc(3 * 64px + 2 * 6px)" }}
         >
-          {sounds.map((sound) => (
-            <DraggableSoundCard
-              key={sound.id}
-              sound={sound}
-              playing={playing}
-              deleting={deleting}
-              canDelete={isOwner || sound.uploaded_by === discordUserId}
-              onPlay={onPlay}
-              onDelete={onDelete}
-              formatDuration={formatDuration}
-              truncateName={truncateName}
-            />
-          ))}
+          <div
+            className={`grid gap-1.5 pb-2 ${
+              isExpanded ? "grid-cols-4" : "grid-cols-2"
+            }`}
+          >
+            {sounds.map((sound) => (
+              <DraggableSoundCard
+                key={sound.id}
+                sound={sound}
+                playing={playing}
+                deleting={deleting}
+                canDelete={isOwner || sound.uploaded_by === discordUserId}
+                onPlay={onPlay}
+                onDelete={onDelete}
+                formatDuration={formatDuration}
+                truncateName={truncateName}
+              />
+            ))}
+          </div>
         </div>
       ) : (
         <div
