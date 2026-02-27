@@ -106,12 +106,9 @@ function DraggableSoundCard({
     : undefined;
 
   return (
-    <motion.div
+    <div
       ref={setNodeRef}
       style={style}
-      variants={itemVariants}
-      layout={!overlay}
-      transition={{ type: "spring", stiffness: 300 }}
       className={isDragging && !overlay ? "opacity-40" : undefined}
     >
       <Card
@@ -265,11 +262,9 @@ function DraggableSoundCard({
           )}
         </div>
       </Card>
-    </motion.div>
+    </div>
   );
 }
-
-// ─── Droppable category section
 function DroppableCategorySection({
   id,
   label,
@@ -381,12 +376,7 @@ function DroppableCategorySection({
       </div>
       {/* Sound cards — 2-col grid; more cols when the category is expanded */}
       {sounds.length > 0 ? (
-        <motion.div
-          layout
-          variants={containerVariants}
-          initial="hidden"
-          animate="show"
-          className={`grid gap-1.5 transition-all duration-300 ${
+        <div className={`grid gap-1.5 ${
             isExpanded
               ? "grid-cols-2 sm:grid-cols-3 lg:grid-cols-4"
               : "grid-cols-2"
@@ -405,7 +395,7 @@ function DroppableCategorySection({
               truncateName={truncateName}
             />
           ))}
-        </motion.div>
+        </div>
       ) : (
         <div
           className={`rounded-xl border-2 border-dashed p-8 text-center transition-colors duration-200 ${
