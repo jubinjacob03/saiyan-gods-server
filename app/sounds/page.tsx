@@ -334,15 +334,15 @@ function DroppableCategorySection({
     <motion.div
       ref={setNodeRef}
       className="space-y-2"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
     >
       {/* Section header — visual drop indicator */}
       <motion.div
-        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all duration-200 ${
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
+        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all duration-200 cursor-pointer ${
           isOver
             ? "bg-primary/10 border-primary/40 shadow-inner"
             : isDraggingAny
