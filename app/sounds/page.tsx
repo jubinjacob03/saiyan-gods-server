@@ -120,6 +120,7 @@ function DraggableSoundCard({
           <button
             {...listeners}
             {...attributes}
+            style={{ touchAction: "none" }}
             className="p-0.5 rounded cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-foreground hover:bg-muted/40 transition-colors shrink-0"
             title="Drag to change category"
           >
