@@ -407,7 +407,7 @@ export default function Home() {
                 </div>
                 <p className={`${designTokens.typography.small} mt-1`}>
                   {!loading && stats.totalUsers > 0
-                    ? `${stats.totalUsers.toLocaleString()} users cached`
+                    ? `${stats.totalUsers.toLocaleString()} members in server`
                     : "bot runtime"}
                 </p>
               </CardHeader>

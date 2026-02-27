@@ -112,7 +112,7 @@ function DraggableSoundCard({
       className={isDragging && !overlay ? "opacity-40" : undefined}
     >
       <Card
-        className={`border border-border/60 shadow-sm hover:shadow-md hover:border-border transition-all duration-150${overlay ? " shadow-2xl ring-2 ring-primary/50" : ""}`}
+        className={`border border-black/20 dark:border-white/15 shadow-none${overlay ? " shadow-2xl ring-2 ring-primary/50" : ""}`}
       >
         <div className="flex items-center gap-2 px-3 py-2.5">
           {/* Drag handle */}
