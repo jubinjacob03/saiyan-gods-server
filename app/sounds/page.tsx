@@ -1299,7 +1299,10 @@ export default function SoundsPage() {
               </div>
 
               {/* Desktop: 2-column grid with hover-reorder */}
-              <div className="hidden md:grid md:grid-cols-2 gap-4">
+              <motion.div 
+                className="hidden md:grid md:grid-cols-2 gap-4"
+                layout
+              >
                 {(() => {
                   const allCategories = [
                     ...categories.map((cat) => ({
@@ -1337,8 +1340,15 @@ export default function SoundsPage() {
                   }
 
                   return allCategories.map((cat) => (
-                    <div
+                    <motion.div
                       key={cat.id}
+                      layout
+                      transition={{
+                        layout: {
+                          duration: 0.3,
+                          ease: "easeInOut"
+                        }
+                      }}
                       onMouseEnter={() => setHoveredCategoryId(cat.id)}
                       onMouseLeave={() => setHoveredCategoryId(null)}
                     >
@@ -1359,10 +1369,10 @@ export default function SoundsPage() {
                         onDeleteCategory={cat.onDelete}
                         isDefault={cat.isDefault}
                       />
-                    </div>
+                    </motion.div>
                   ));
                 })()}
-              </div>
+              </motion.div>
             </div>
           ) : (
             <motion.div
