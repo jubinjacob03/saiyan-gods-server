@@ -329,20 +329,33 @@ function DroppableCategorySection({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   const [isHovered, setIsHovered] = useState(false);
+  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleMouseEnter = () => {
+    hoverTimer.current = setTimeout(() => setIsHovered(true), 700);
+  };
+
+  const handleMouseLeave = () => {
+    if (hoverTimer.current) {
+      clearTimeout(hoverTimer.current);
+      hoverTimer.current = null;
+    }
+    setIsHovered(false);
+  };
 
   return (
     <motion.div
       ref={setNodeRef}
       className="space-y-2"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
     >
       {/* Section header — visual drop indicator */}
       <motion.div
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all duration-200 cursor-pointer ${
+        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all duration-200 ${
           isOver
             ? "bg-primary/10 border-primary/40 shadow-inner"
             : isDraggingAny
