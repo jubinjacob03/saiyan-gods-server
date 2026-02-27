@@ -7,19 +7,19 @@ export const designTokens = {
   // Typography Hierarchy
   typography: {
     // Headings
-    h1: "text-4xl font-bold tracking-tight", // Page titles
-    h2: "text-2xl font-semibold", // Section headings
-    h3: "text-lg font-medium", // Card titles, subsections
+    h1: "text-2xl md:text-4xl font-bold tracking-tight", // Page titles
+    h2: "text-xl md:text-2xl font-semibold", // Section headings
+    h3: "text-base md:text-lg font-medium", // Card titles, subsections
 
     // Body text
     body: "text-base", // Normal text
-    bodyMuted: "text-base text-muted-foreground", // Secondary text
+    bodyMuted: "text-sm md:text-base text-muted-foreground", // Secondary text
     small: "text-sm", // Labels, descriptions
     smallMuted: "text-sm text-muted-foreground", // Helper text
     xs: "text-xs text-muted-foreground", // Tiny helper text
 
     // Special
-    statNumber: "text-3xl font-bold", // Statistics/numbers
+    statNumber: "text-2xl md:text-3xl font-bold", // Statistics/numbers
   },
 
   // Icon System - Standardized sizes
@@ -56,17 +56,17 @@ export const designTokens = {
 
   // Spacing
   spacing: {
-    pageSection: "space-y-12", // Between major page sections
-    cardSection: "space-y-8", // Within card sections
-    formGroup: "space-y-6", // Between form groups
+    pageSection: "space-y-6 md:space-y-12", // Between major page sections
+    cardSection: "space-y-6 md:space-y-8", // Within card sections
+    formGroup: "space-y-4 md:space-y-6", // Between form groups
     inputGroup: "space-y-3", // Within input groups
-    cardGap: "gap-6", // Grid gaps
+    cardGap: "gap-3 md:gap-6", // Grid gaps
   },
 
   // Component sizes
   components: {
-    button: "h-12 px-6 text-base font-semibold",
-    input: "h-12 text-base",
+    button: "h-10 md:h-12 px-4 md:px-6 text-sm md:text-base font-semibold",
+    input: "h-10 md:h-12 text-sm md:text-base",
     cardPadding: "pb-4",
   },
 

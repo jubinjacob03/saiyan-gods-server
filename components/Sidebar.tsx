@@ -113,7 +113,13 @@ const navigation = [
   },
 ];
 
-export function Sidebar() {
+export function Sidebar({
+  mobileOpen = false,
+  setMobileOpen,
+}: {
+  mobileOpen?: boolean;
+  setMobileOpen?: (open: boolean) => void;
+}) {
   const pathname = usePathname();
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
@@ -134,13 +140,40 @@ export function Sidebar() {
   };
 
   return (
-    <motion.div
-      initial={{ x: -300 }}
-      animate={{ x: 0 }}
-      transition={{ type: "spring", stiffness: 100, damping: 20 }}
-      className="flex h-full w-72 flex-col border-r bg-gradient-to-b from-card to-card/50 shadow-lg"
+    <div
+      className={[
+        "flex h-full w-72 shrink-0 flex-col border-r bg-linear-to-b from-card to-card/50 shadow-lg",
+        "fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out",
+        "md:static md:z-auto md:translate-x-0",
+        mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full",
+      ].join(" ")}
     >
-      <div className="flex h-20 items-center justify-center border-b px-6 bg-gradient-to-r from-primary/10 to-primary/5">
+      {/* Mobile close button */}
+      <div className="flex items-center justify-between md:hidden px-4 pt-3 pb-1">
+        <span className="text-xs text-muted-foreground font-medium uppercase tracking-widest">
+          Menu
+        </span>
+        <button
+          onClick={() => setMobileOpen?.(false)}
+          className="p-1.5 rounded-lg hover:bg-muted/40 transition-colors"
+          aria-label="Close menu"
+        >
+          <svg
+            className="h-5 w-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      </div>
+      <div className="flex h-20 items-center justify-center border-b px-6 bg-linear-to-r from-primary/10 to-primary/5">
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -173,6 +206,7 @@ export function Sidebar() {
             >
               <Link
                 href={item.href}
+                onClick={() => setMobileOpen?.(false)}
                 className={cn(
                   "group flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-medium transition-all duration-300",
                   isActive
@@ -214,7 +248,7 @@ export function Sidebar() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setShowDropdown(!showDropdown)}
-              className="w-full flex items-center gap-3 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 px-4 py-3.5 border border-primary/20 hover:border-primary/40 transition-colors"
+              className="w-full flex items-center gap-3 rounded-xl bg-linear-to-r from-primary/10 to-primary/5 px-4 py-3.5 border border-primary/20 hover:border-primary/40 transition-colors"
             >
               <div className="relative">
                 <img
@@ -285,7 +319,7 @@ export function Sidebar() {
             </AnimatePresence>
           </div>
         ) : (
-          <div className="flex items-center gap-4 rounded-xl bg-gradient-to-r from-green-500/10 to-emerald-500/10 px-4 py-3.5 border border-green-500/20">
+          <div className="flex items-center gap-4 rounded-xl bg-linear-to-r from-green-500/10 to-emerald-500/10 px-4 py-3.5 border border-green-500/20">
             <motion.div
               animate={{ scale: [1, 1.2, 1] }}
               transition={{ repeat: Infinity, duration: 2 }}
@@ -300,6 +334,6 @@ export function Sidebar() {
           </div>
         )}
       </motion.div>
-    </motion.div>
+    </div>
   );
 }

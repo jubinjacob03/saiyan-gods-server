@@ -1057,7 +1057,7 @@ export default function SoundsPage() {
               placeholder="Search sounds..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className={`max-w-md ${designTokens.components.input} pl-12 shadow-sm`}
+              className={`w-full md:max-w-md ${designTokens.components.input} pl-12 shadow-sm`}
             />
           </motion.div>
 
@@ -1067,7 +1067,7 @@ export default function SoundsPage() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="flex items-center gap-3"
+              className="flex flex-wrap items-center gap-3"
             >
               <div className="flex items-center gap-2 text-sm text-gray-400">
                 <svg
@@ -1088,7 +1088,7 @@ export default function SoundsPage() {
               <select
                 value={selectedChannel}
                 onChange={(e) => setSelectedChannel(e.target.value)}
-                className={`${designTokens.components.input} text-sm py-1.5 px-3 rounded-lg border cursor-pointer min-w-[180px]`}
+                className={`${designTokens.components.input} text-sm py-1.5 px-3 rounded-lg border cursor-pointer w-full sm:w-auto sm:min-w-45`}
               >
                 {voiceChannels.map((ch) => (
                   <option key={ch.id} value={ch.id}>
@@ -1106,7 +1106,7 @@ export default function SoundsPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="text-xs text-muted-foreground/60 flex items-center gap-1.5"
+              className="hidden md:flex text-xs text-muted-foreground/60 items-center gap-1.5"
             >
               <svg
                 className="w-3.5 h-3.5"
@@ -1129,8 +1129,56 @@ export default function SoundsPage() {
           {/* ── Grouped sound sections ── */}
           {filteredSounds.length > 0 ? (
             <div className="space-y-6">
-              {/* All categories (named + uncategorized) side by side; hover expands */}
-              <div className="flex gap-4 items-start">
+              {/* Mobile: stacked categories (no hover-expand) */}
+              <div className="md:hidden space-y-4">
+                {[
+                  ...categories.map((cat) => ({
+                    id: cat.id,
+                    label: cat.name,
+                    isDefault: false as const,
+                    sounds: soundsByCategory[cat.id] ?? [],
+                    onEdit: () => {
+                      setEditingCategory(cat);
+                      setEditCategoryName(cat.name);
+                    },
+                    onDelete: () => {
+                      setDeleteCategoryTarget(cat);
+                      setDeleteCategoryDialogOpen(true);
+                    },
+                  })),
+                  {
+                    id: "uncategorized",
+                    label: "Uncategorized",
+                    isDefault: true as const,
+                    sounds: soundsByCategory["uncategorized"] ?? [],
+                    onEdit: undefined,
+                    onDelete: undefined,
+                  },
+                ].map((cat) => (
+                  <DroppableCategorySection
+                    key={cat.id}
+                    id={cat.id}
+                    label={cat.label}
+                    sounds={cat.sounds}
+                    playing={playing}
+                    deleting={deleting}
+                    discordUserId={discordUserId}
+                    isOwner={isOwner}
+                    onPlay={handlePlay}
+                    onDelete={handleDelete}
+                    formatDuration={formatDuration}
+                    truncateName={truncateName}
+                    isDraggingAny={!!draggingSound}
+                    onEditCategory={cat.onEdit}
+                    onDeleteCategory={cat.onDelete}
+                    isDefault={cat.isDefault}
+                    isExpanded={false}
+                  />
+                ))}
+              </div>
+
+              {/* Desktop: side-by-side with hover-expand */}
+              <div className="hidden md:flex gap-4 items-start">
                 {[
                   ...categories.map((cat) => ({
                     id: cat.id,

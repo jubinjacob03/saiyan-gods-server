@@ -219,7 +219,10 @@ export default function PrivateVCPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null); // `${vcId}-add-${userId}` etc.
-  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = useState<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
   const [addTarget, setAddTarget] = useState<{
     vcId: string;
     open: boolean;
@@ -259,8 +262,10 @@ export default function PrivateVCPage() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (user) {
         const discordId =
-          user.identities?.find((i) => i.provider === "discord")
-            ?.identity_data?.sub || user.user_metadata?.provider_id || user.id;
+          user.identities?.find((i) => i.provider === "discord")?.identity_data
+            ?.sub ||
+          user.user_metadata?.provider_id ||
+          user.id;
         setCurrentUserId(discordId);
         // Check owner role
         try {
@@ -389,9 +394,7 @@ export default function PrivateVCPage() {
     return allMembers.filter((m) => !inVC.has(m.id));
   };
 
-  const myVC = vcs.find((vc) =>
-    vc.members.some((m) => m.id === currentUserId),
-  );
+  const myVC = vcs.find((vc) => vc.members.some((m) => m.id === currentUserId));
 
   return (
     <AppLayout>
@@ -476,14 +479,14 @@ export default function PrivateVCPage() {
 
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className={designTokens.typography.h1}>Private VC</h1>
-            <p className="text-muted-foreground mt-1">
+            <p className="text-sm md:text-base text-muted-foreground mt-1">
               Create and manage private voice channels — up to 5 simultaneous
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="outline"
               size="sm"
@@ -631,16 +634,23 @@ export default function PrivateVCPage() {
                       {/* Creator */}
                       {vc.creatorName && (
                         <div className="flex items-center gap-1.5 mt-2">
-                          <span className="text-xs text-muted-foreground">Created by</span>
+                          <span className="text-xs text-muted-foreground">
+                            Created by
+                          </span>
                           {vc.creatorAvatar && (
                             <img
                               src={vc.creatorAvatar}
                               alt={vc.creatorName}
                               className="w-4 h-4 rounded-full object-cover"
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display =
+                                  "none";
+                              }}
                             />
                           )}
-                          <span className="text-xs font-medium">{vc.creatorName}</span>
+                          <span className="text-xs font-medium">
+                            {vc.creatorName}
+                          </span>
                         </div>
                       )}
                     </CardHeader>
@@ -667,9 +677,7 @@ export default function PrivateVCPage() {
                             </div>
                             {m.id !== currentUserId && isMyVC && (
                               <button
-                                onClick={() =>
-                                  handleRemove(vc.channelId, m.id)
-                                }
+                                onClick={() => handleRemove(vc.channelId, m.id)}
                                 disabled={
                                   actionLoading ===
                                   `${vc.channelId}-remove-${m.id}`
