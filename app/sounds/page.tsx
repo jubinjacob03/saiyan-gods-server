@@ -472,6 +472,9 @@ export default function SoundsPage() {
 
   // ── DnD
   const [draggingSound, setDraggingSound] = useState<Sound | null>(null);
+  
+  // ── Category hover reorder
+  const [hoveredCategoryId, setHoveredCategoryId] = useState<string | null>(null);
 
   const guildId = process.env.NEXT_PUBLIC_DISCORD_GUILD_ID!;
   const botSocket = useRef<BotSocket | null>(null);
@@ -1295,51 +1298,70 @@ export default function SoundsPage() {
                 ))}
               </div>
 
-              {/* Desktop: 2-column grid with hover-expand */}
+              {/* Desktop: 2-column grid with hover-reorder */}
               <div className="hidden md:grid md:grid-cols-2 gap-4">
-                {[
-                  ...categories.map((cat) => ({
-                    id: cat.id,
-                    label: cat.name,
-                    isDefault: false as const,
-                    sounds: soundsByCategory[cat.id] ?? [],
-                    onEdit: () => {
-                      setEditingCategory(cat);
-                      setEditCategoryName(cat.name);
+                {(() => {
+                  const allCategories = [
+                    ...categories.map((cat) => ({
+                      id: cat.id,
+                      label: cat.name,
+                      isDefault: false as const,
+                      sounds: soundsByCategory[cat.id] ?? [],
+                      onEdit: () => {
+                        setEditingCategory(cat);
+                        setEditCategoryName(cat.name);
+                      },
+                      onDelete: () => {
+                        setDeleteCategoryTarget(cat);
+                        setDeleteCategoryDialogOpen(true);
+                      },
+                    })),
+                    {
+                      id: "uncategorized",
+                      label: "Uncategorized",
+                      isDefault: true as const,
+                      sounds: soundsByCategory["uncategorized"] ?? [],
+                      onEdit: undefined,
+                      onDelete: undefined,
                     },
-                    onDelete: () => {
-                      setDeleteCategoryTarget(cat);
-                      setDeleteCategoryDialogOpen(true);
-                    },
-                  })),
-                  {
-                    id: "uncategorized",
-                    label: "Uncategorized",
-                    isDefault: true as const,
-                    sounds: soundsByCategory["uncategorized"] ?? [],
-                    onEdit: undefined,
-                    onDelete: undefined,
-                  },
-                ].map((cat, index) => (
-                  <DroppableCategorySection
-                    key={cat.id}
-                    id={cat.id}
-                    label={cat.label}
-                    sounds={cat.sounds}
-                    playing={playing}
-                    deleting={deleting}
-                    discordUserId={discordUserId}
-                    isOwner={isOwner}
-                    onPlay={handlePlay}
-                    onDelete={handleDelete}
-                    formatDuration={formatDuration}
-                    truncateName={truncateName}
-                    isDraggingAny={!!draggingSound}
-                    onEditCategory={cat.onEdit}
-                    onDeleteCategory={cat.onDelete}
-                    isDefault={cat.isDefault}
-                  />
-                ))}
+                  ];
+
+                  // Reorder: put hovered category first
+                  if (hoveredCategoryId) {
+                    const hoveredIndex = allCategories.findIndex(c => c.id === hoveredCategoryId);
+                    if (hoveredIndex > 0) {
+                      const hovered = allCategories[hoveredIndex];
+                      allCategories.splice(hoveredIndex, 1);
+                      allCategories.unshift(hovered);
+                    }
+                  }
+
+                  return allCategories.map((cat) => (
+                    <div
+                      key={cat.id}
+                      onMouseEnter={() => setHoveredCategoryId(cat.id)}
+                      onMouseLeave={() => setHoveredCategoryId(null)}
+                    >
+                      <DroppableCategorySection
+                        id={cat.id}
+                        label={cat.label}
+                        sounds={cat.sounds}
+                        playing={playing}
+                        deleting={deleting}
+                        discordUserId={discordUserId}
+                        isOwner={isOwner}
+                        onPlay={handlePlay}
+                        onDelete={handleDelete}
+                        formatDuration={formatDuration}
+                        truncateName={truncateName}
+                        isDraggingAny={!!draggingSound}
+                        onEditCategory={cat.onEdit}
+                        onDeleteCategory={cat.onDelete}
+                        isDefault={cat.isDefault}
+                      />
+                    </div>
+                  ));
+                })()}
               </div>
             </div>
           ) : (
