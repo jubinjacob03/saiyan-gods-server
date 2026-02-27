@@ -1252,8 +1252,8 @@ export default function SoundsPage() {
                 ))}
               </div>
 
-              {/* Desktop: side-by-side with hover-expand */}
-              <div className="hidden md:flex gap-4 items-start">
+              {/* Desktop: 2-column grid with hover-expand */}
+              <div className="hidden md:grid md:grid-cols-2 gap-4">
                 {[
                   ...categories.map((cat) => ({
                     id: cat.id,
@@ -1282,17 +1282,7 @@ export default function SoundsPage() {
                     key={cat.id}
                     onMouseEnter={() => setExpandedCat(cat.id)}
                     onMouseLeave={() => setExpandedCat(null)}
-                    animate={{
-                      width:
-                        expandedCat === cat.id
-                          ? "100%"
-                          : expandedCat
-                            ? "0%"
-                            : "50%",
-                      opacity: expandedCat && expandedCat !== cat.id ? 0 : 1,
-                    }}
-                    transition={{ duration: 0.28, ease: "easeInOut" }}
-                    className="overflow-x-hidden min-w-0"
+                    className="overflow-hidden"
                     initial={{ opacity: 0, y: 16 }}
                   >
                     <DroppableCategorySection
