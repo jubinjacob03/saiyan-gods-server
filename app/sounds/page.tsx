@@ -112,9 +112,9 @@ function DraggableSoundCard({
       className={isDragging && !overlay ? "opacity-40" : undefined}
     >
       <Card
-        className={`border border-black/20 dark:border-white/15 shadow-none${overlay ? " shadow-2xl ring-2 ring-primary/50" : ""}`}
+        className={`h-16 border border-black/20 dark:border-white/15 shadow-none${overlay ? " shadow-2xl ring-2 ring-primary/50" : ""}`}
       >
-        <div className="flex items-center gap-2 px-3 py-2.5">
+        <div className="flex h-full items-center gap-2 px-3">
           {/* Drag handle */}
           <button
             {...listeners}
@@ -375,11 +375,11 @@ function DroppableCategorySection({
       {/* Sound cards — 2-col when collapsed, 4-col when expanded; max 3 rows then scroll */}
       {sounds.length > 0 ? (
         <div
-          className="overflow-y-auto"
-          style={{ maxHeight: "calc(3 * 64px + 2 * 6px)" }}
+          className="overflow-y-auto p-px"
+          style={{ maxHeight: "calc(3 * 64px + 2 * 6px + 2px)" }}
         >
           <div
-            className={`grid gap-1.5 pb-2 ${
+            className={`grid gap-1.5 pb-px ${
               isExpanded ? "grid-cols-4" : "grid-cols-2"
             }`}
           >
@@ -646,7 +646,12 @@ export default function SoundsPage() {
     } catch (error) {
       console.error("Error playing sound:", error);
     } finally {
-      setTimeout(() => setPlaying(null), 2000);
+      // Only clear the playing state if this sound is still the active one.
+      // If the user switched to another sound before the timeout fires, leave it alone.
+      setTimeout(
+        () => setPlaying((prev) => (prev === sound.id ? null : prev)),
+        2000,
+      );
     }
   };
 
