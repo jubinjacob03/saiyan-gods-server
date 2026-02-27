@@ -303,10 +303,9 @@ function DroppableCategorySection({
   const { setNodeRef, isOver } = useDroppable({ id });
 
   return (
-    <div className="space-y-2">
-      {/* Section header — droppable zone */}
+    <div ref={setNodeRef} className="space-y-2">
+      {/* Section header — visual drop indicator */}
       <div
-        ref={setNodeRef}
         className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all duration-200 ${
           isOver
             ? "bg-primary/10 border-primary/40 shadow-inner"
