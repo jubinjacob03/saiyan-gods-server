@@ -111,7 +111,6 @@ function DraggableSoundCard({
       style={style}
       variants={itemVariants}
       layout={!overlay}
-      whileHover={!isDragging ? { y: -2, scale: 1.01 } : undefined}
       transition={{ type: "spring", stiffness: 300 }}
       className={isDragging && !overlay ? "opacity-40" : undefined}
     >
