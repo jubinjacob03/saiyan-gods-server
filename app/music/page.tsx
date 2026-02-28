@@ -620,4 +620,5 @@ export default function MusicPage() {
         )}
       </AnimatePresence>
     </div>
-    </AppLayout>
+    </AppLayout>  );
+}
