@@ -11,8 +11,13 @@ export async function GET(request: NextRequest) {
       },
     );
     const data = await response.json();
-    return NextResponse.json(data, { status: response.ok ? 200 : response.status });
+    return NextResponse.json(data, {
+      status: response.ok ? 200 : response.status,
+    });
   } catch {
-    return NextResponse.json({ error: "Failed to reach bot API" }, { status: 502 });
+    return NextResponse.json(
+      { error: "Failed to reach bot API" },
+      { status: 502 },
+    );
   }
 }

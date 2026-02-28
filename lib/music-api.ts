@@ -37,7 +37,13 @@ export async function musicPlay(
   const res = await fetch("/api/bot/music/play", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ guildId: GUILD_ID, voiceChannelId, query, userId, username }),
+    body: JSON.stringify({
+      guildId: GUILD_ID,
+      voiceChannelId,
+      query,
+      userId,
+      username,
+    }),
   });
   return res.json();
 }
@@ -55,9 +61,8 @@ export async function musicControl(
 }
 
 export async function musicStatus(): Promise<MusicStatus> {
-  const res = await fetch(
-    `/api/bot/music/status?guildId=${GUILD_ID}`,
-    { cache: "no-store" },
-  );
+  const res = await fetch(`/api/bot/music/status?guildId=${GUILD_ID}`, {
+    cache: "no-store",
+  });
   return res.json();
 }
