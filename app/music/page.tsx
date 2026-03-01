@@ -5,8 +5,13 @@ import AppLayout from "@/components/AppLayout";
 import { getSession } from "@/lib/auth";
 import {
   musicPlay,
-  musicControl,
   musicStatus,
+  musicSkip,
+  musicToggle,
+  musicStop,
+  musicShuffle,
+  musicLoop,
+  musicVolume,
   type MusicStatus,
 } from "@/lib/music-api";
 import { motion, AnimatePresence } from "framer-motion";
@@ -224,49 +229,55 @@ export default function MusicPage() {
         discordUserId ?? "web",
         session?.user?.user_metadata?.full_name ?? "Web Player",
       );
-      // Poll quickly to reflect new song
       multiPoll([800, 1800, 3000]);
     } catch {}
     setLoadingPlay(null);
   };
 
-  const handleControl = useCallback(
-    async (
-      action: "toggle" | "skip" | "stop" | "shuffle" | "loop" | "volume",
-      value?: number,
-    ) => {
-      // Optimistic UI update — feels instant
-      if (action === "toggle") {
-        setStatus((prev) =>
-          prev ? { ...prev, paused: !prev.paused, playing: prev.paused } : prev,
-        );
-      } else if (action === "stop") {
-        setStatus(null);
-      } else if (action === "volume" && value !== undefined) {
-        setVolume(value);
-        setStatus((prev) => (prev ? { ...prev, volume: value } : prev));
-      }
+  // ── Optimistic + fire-and-forget control handlers ─────────────────────────
+  const handleToggle = useCallback(() => {
+    setStatus((prev) =>
+      prev ? { ...prev, paused: !prev.paused, playing: prev.paused } : prev,
+    );
+    musicToggle().catch(() => {});
+    multiPoll([300, 1000]);
+  }, [multiPoll]);
 
-      // Fire the actual request
-      musicControl(action, value).catch(() => {});
+  const handleSkip = useCallback(() => {
+    // Optimistically clear elapsed so progress resets
+    setStatus((prev) => prev ? { ...prev, elapsed: 0 } : prev);
+    musicSkip().catch(() => {});
+    multiPoll([900, 1800, 3200]);
+  }, [multiPoll]);
 
-      // Re-sync from server
-      if (action === "skip") {
-        // Skip takes a moment for Lavalink to load next track
-        multiPoll([900, 1800, 3200]);
-      } else if (action === "shuffle") {
-        multiPoll([600, 1500]);
-      } else if (action !== "volume") {
-        multiPoll([400, 1200]);
-      }
+  const handleStop = useCallback(() => {
+    setStatus(null);
+    musicStop().catch(() => {});
+  }, []);
+
+  const handleShuffle = useCallback(() => {
+    musicShuffle().catch(() => {});
+    multiPoll([500, 1400]);
+  }, [multiPoll]);
+
+  const handleLoop = useCallback(() => {
+    setStatus((prev) =>
+      prev ? { ...prev, repeatMode: (prev.repeatMode + 1) % 3 } : prev,
+    );
+    musicLoop().catch(() => {});
+    multiPoll([300, 1000]);
+  }, [multiPoll]);
+
+  const handleVolumeChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const v = Number(e.target.value);
+      setVolume(v);
+      setStatus((prev) => (prev ? { ...prev, volume: v } : prev));
+      musicVolume(v).catch(() => {});
     },
-    [multiPoll],
+    [],
   );
 
-  const handleVolumeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const v = Number(e.target.value);
-    handleControl("volume", v);
-  };
 
   const isPlaying = status?.playing && !status?.paused;
   const loopLabels = ["Off", "Song", "Queue"];
@@ -555,7 +566,7 @@ export default function MusicPage() {
                     {/* Controls */}
                     <div className="flex items-center gap-1 shrink-0">
                       <button
-                        onClick={() => handleControl("shuffle")}
+                        onClick={handleShuffle}
                         className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
                       >
                         <svg
@@ -574,7 +585,7 @@ export default function MusicPage() {
                       </button>
 
                       <button
-                        onClick={() => handleControl("toggle")}
+                        onClick={handleToggle}
                         className="p-2 rounded-xl bg-white text-black hover:bg-white/80 transition-colors"
                       >
                         {isPlaying ? (
@@ -597,7 +608,7 @@ export default function MusicPage() {
                       </button>
 
                       <button
-                        onClick={() => handleControl("skip")}
+                        onClick={handleSkip}
                         className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
                       >
                         <svg
@@ -610,7 +621,7 @@ export default function MusicPage() {
                       </button>
 
                       <button
-                        onClick={() => handleControl("loop")}
+                        onClick={handleLoop}
                         className={`p-2 rounded-lg transition-colors text-xs font-medium ${
                           status.repeatMode > 0
                             ? "text-blue-400 hover:bg-blue-400/10"
@@ -666,7 +677,7 @@ export default function MusicPage() {
                       </button>
 
                       <button
-                        onClick={() => handleControl("stop")}
+                        onClick={handleStop}
                         className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-400/10 transition-colors"
                       >
                         <svg
