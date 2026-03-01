@@ -23,9 +23,14 @@ export async function POST(
       body: JSON.stringify(body),
     });
     const data = await response.json();
-    return NextResponse.json(data, { status: response.ok ? 200 : response.status });
+    return NextResponse.json(data, {
+      status: response.ok ? 200 : response.status,
+    });
   } catch {
-    return NextResponse.json({ error: "Failed to reach bot API" }, { status: 502 });
+    return NextResponse.json(
+      { error: "Failed to reach bot API" },
+      { status: 502 },
+    );
   }
 }
 
@@ -44,8 +49,13 @@ export async function GET(
       },
     );
     const data = await response.json();
-    return NextResponse.json(data, { status: response.ok ? 200 : response.status });
+    return NextResponse.json(data, {
+      status: response.ok ? 200 : response.status,
+    });
   } catch {
-    return NextResponse.json({ error: "Failed to reach bot API" }, { status: 502 });
+    return NextResponse.json(
+      { error: "Failed to reach bot API" },
+      { status: 502 },
+    );
   }
 }

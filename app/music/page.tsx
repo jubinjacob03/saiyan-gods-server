@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import AppLayout from "@/components/AppLayout";
@@ -349,9 +349,8 @@ export default function MusicPage() {
               <h1 className="text-2xl font-bold tracking-tight">Music</h1>
               {status?.song && (
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {isPlaying ? "Γû╢ Playing" : "ΓÅ╕ Paused"} in{" "}
-                  {channels.find((c) => c.id === selectedChannel)?.name ??
-                    "…"}
+                  {isPlaying ? "▶ Playing" : "⏸ Paused"} in{" "}
+                  {channels.find((c) => c.id === selectedChannel)?.name ?? "…"}
                 </p>
               )}
             </div>
@@ -376,7 +375,7 @@ export default function MusicPage() {
                 onChange={(e) => setSelectedChannel(e.target.value)}
                 className="text-sm bg-muted border border-border/50 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
-                {channels.length === 0 && <option value="">Loading…</option>}
+                {channels.length === 0 && <option value="">Loading...</option>}
                 {channels.map((c) => {
                   const isUserHere = discordUserId
                     ? c.memberIds?.includes(discordUserId)
@@ -409,7 +408,7 @@ export default function MusicPage() {
             </svg>
             <input
               type="text"
-              placeholder="Search for songs…"
+              placeholder="Search for songs..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border/50 bg-muted/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground/60"
@@ -630,7 +629,7 @@ export default function MusicPage() {
                           />
                         </svg>
                         <span className="text-xs text-white/40 font-medium">
-                          Loading…
+                          Loading...
                         </span>
                       </motion.div>
                     )}
@@ -693,7 +692,7 @@ export default function MusicPage() {
                                 optimisticQueue.length > 0 ? (
                                   <>
                                     <p className="text-[9px] uppercase tracking-[0.12em] text-white/20 font-medium mb-2">
-                                      Up next ·{" "}
+                                      Up next &middot;{" "}
                                       {status.queueLength -
                                         1 +
                                         optimisticQueue.length}{" "}
@@ -957,7 +956,7 @@ export default function MusicPage() {
                     ) : (
                       <div className="h-14 flex items-center justify-center">
                         <span className="text-xs text-white/25">
-                          Connecting…
+                          Connecting...
                         </span>
                       </div>
                     )}

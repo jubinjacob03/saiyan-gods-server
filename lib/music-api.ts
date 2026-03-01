@@ -62,7 +62,13 @@ export function musicPlay(
   return fetch("/api/bot/music/play", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ guildId: GUILD_ID, voiceChannelId, query, userId, username }),
+    body: JSON.stringify({
+      guildId: GUILD_ID,
+      voiceChannelId,
+      query,
+      userId,
+      username,
+    }),
   }).then((r) => r.json());
 }
 
@@ -76,7 +82,10 @@ export function musicStatus(): Promise<MusicStatus> {
 
 // ── Queue details ─────────────────────────────────────────────────────────────
 
-export function musicQueue(): Promise<{ queue: QueueEntry[]; queueLength: number }> {
+export function musicQueue(): Promise<{
+  queue: QueueEntry[];
+  queueLength: number;
+}> {
   return fetch(`/api/bot/music/queue?guildId=${GUILD_ID}`, {
     cache: "no-store",
   }).then((r) => r.json());
@@ -93,24 +102,24 @@ export function musicSearch(
 
 // ── Direct command endpoints (no action string, no switch overhead) ───────────
 
-export const musicSkip    = ()               => cmd("skip",    {});
-export const musicPause   = ()               => cmd("pause",   {});
-export const musicResume  = ()               => cmd("resume",  {});
-export const musicToggle  = ()               => cmd("toggle",  {});
-export const musicStop    = ()               => cmd("stop",    {});
-export const musicShuffle = ()               => cmd("shuffle", {});
-export const musicSeek    = (secs: number)   => cmd("seek",    { value: secs });
-export const musicRemove  = (index: number)  => cmd("remove",  { value: index });
-export const musicFilter  = (name: string)   => cmd("filter",  { value: name });
+export const musicSkip = () => cmd("skip", {});
+export const musicPause = () => cmd("pause", {});
+export const musicResume = () => cmd("resume", {});
+export const musicToggle = () => cmd("toggle", {});
+export const musicStop = () => cmd("stop", {});
+export const musicShuffle = () => cmd("shuffle", {});
+export const musicSeek = (secs: number) => cmd("seek", { value: secs });
+export const musicRemove = (index: number) => cmd("remove", { value: index });
+export const musicFilter = (name: string) => cmd("filter", { value: name });
 
 export function musicLoop(mode?: number) {
   return cmd("loop", mode !== undefined ? { value: mode } : {});
 }
 
 export function musicVolume(vol: number) {
-  return cmd<{ success?: boolean; volume?: number; error?: string }>(
-    "volume", { value: Math.max(0, Math.min(100, vol)) },
-  );
+  return cmd<{ success?: boolean; volume?: number; error?: string }>("volume", {
+    value: Math.max(0, Math.min(100, vol)),
+  });
 }
 
 // ── Legacy generic control (kept so nothing breaks during rollout) ────────────
@@ -125,4 +134,3 @@ export function musicControl(
     body: JSON.stringify({ guildId: GUILD_ID, action, value }),
   }).then((r) => r.json());
 }
-
