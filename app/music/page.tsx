@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import AppLayout from "@/components/AppLayout";
@@ -121,12 +121,12 @@ export default function MusicPage() {
   const discordUserId: string | undefined =
     session?.user?.user_metadata?.provider_id;
 
-  // ΓöÇΓöÇ Session
+  // ── Session
   useEffect(() => {
     getSession().then(setSession);
   }, []);
 
-  // ΓöÇΓöÇ Load voice channels
+  // ── Load voice channels
   useEffect(() => {
     if (!GUILD_ID) return;
     fetch("/api/bot/channels")
@@ -141,7 +141,7 @@ export default function MusicPage() {
       .catch(() => {});
   }, []);
 
-  // ΓöÇΓöÇ Auto-select user's current VC
+  // ── Auto-select user's current VC
   useEffect(() => {
     if (!discordUserId || channels.length === 0) return;
     const userCh = channels.find((c) => c.memberIds?.includes(discordUserId));
@@ -196,7 +196,7 @@ export default function MusicPage() {
     [stopRapidPoll],
   );
 
-  // ΓöÇΓöÇ Status polling (2 s)
+  // ── Status polling (2 s)
   const fetchStatus = useCallback(async () => {
     try {
       const s = await musicStatus();
@@ -220,13 +220,13 @@ export default function MusicPage() {
     };
   }, [fetchStatus]);
 
-  // ΓöÇΓöÇ Search debounce
+  // ── Search debounce
   useEffect(() => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
     searchDebounce.current = setTimeout(() => setDebouncedQuery(query), 400);
   }, [query]);
 
-  // ΓöÇΓöÇ YouTube feed
+  // ── YouTube feed
   useEffect(() => {
     setLoadingVideos(true);
     setVideoError(null);
@@ -291,7 +291,7 @@ export default function MusicPage() {
     setLoadingPlay(null);
   };
 
-  // ΓöÇΓöÇ Optimistic + fire-and-forget control handlers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+  // ── Optimistic + fire-and-forget control handlers ─────────────────────────
   const handleToggle = useCallback(() => {
     setStatus((prev) =>
       prev ? { ...prev, paused: !prev.paused, playing: prev.paused } : prev,
@@ -351,7 +351,7 @@ export default function MusicPage() {
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {isPlaying ? "Γû╢ Playing" : "ΓÅ╕ Paused"} in{" "}
                   {channels.find((c) => c.id === selectedChannel)?.name ??
-                    "ΓÇª"}
+                    "…"}
                 </p>
               )}
             </div>
@@ -376,14 +376,14 @@ export default function MusicPage() {
                 onChange={(e) => setSelectedChannel(e.target.value)}
                 className="text-sm bg-muted border border-border/50 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
-                {channels.length === 0 && <option value="">LoadingΓÇª</option>}
+                {channels.length === 0 && <option value="">Loading…</option>}
                 {channels.map((c) => {
                   const isUserHere = discordUserId
                     ? c.memberIds?.includes(discordUserId)
                     : false;
                   return (
                     <option key={c.id} value={c.id}>
-                      {isUserHere ? "ΓùÅ " : ""}
+                      {isUserHere ? "● " : ""}
                       {c.name}
                       {c.memberCount > 0 ? ` (${c.memberCount})` : ""}
                     </option>
@@ -409,7 +409,7 @@ export default function MusicPage() {
             </svg>
             <input
               type="text"
-              placeholder="Search for songsΓÇª"
+              placeholder="Search for songs…"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border/50 bg-muted/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground/60"
