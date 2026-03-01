@@ -35,25 +35,6 @@ interface VoiceChannel {
 
 const GUILD_ID = process.env.NEXT_PUBLIC_DISCORD_GUILD_ID!;
 
-function ProgressBar({
-  elapsed,
-  duration,
-}: {
-  elapsed: number;
-  duration: number;
-}) {
-  const pct = duration > 0 ? Math.min((elapsed / duration) * 100, 100) : 0;
-  return (
-    <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
-      <motion.div
-        className="h-full bg-white/70 rounded-full"
-        style={{ width: `${pct}%` }}
-        transition={{ ease: "linear", duration: 1 }}
-      />
-    </div>
-  );
-}
-
 function VolumeIcon({ vol }: { vol: number }) {
   if (vol === 0)
     return (
@@ -117,19 +98,35 @@ export default function MusicPage() {
   const [status, setStatus] = useState<MusicStatus | null>(null);
   const [volume, setVolume] = useState(50);
   const [showQueue, setShowQueue] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
+  // Optimistic queue: entries added instantly on click before bot confirms
+  const [optimisticQueue, setOptimisticQueue] = useState<
+    {
+      id: string;
+      title: string;
+      channel: string;
+      thumbnail: string;
+      duration: string;
+    }[]
+  >([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const elapsedRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rapidPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rapidTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const transitioningRef = useRef(false);
+  const preActionUrlRef = useRef<string | null>(null);
+  const currentSongUrlRef = useRef<string | null>(null);
+  const prevQueueLengthRef = useRef(0);
 
   const discordUserId: string | undefined =
     session?.user?.user_metadata?.provider_id;
 
-  // ── Session
+  // ΓöÇΓöÇ Session
   useEffect(() => {
     getSession().then(setSession);
   }, []);
 
-  // ── Load voice channels
+  // ΓöÇΓöÇ Load voice channels
   useEffect(() => {
     if (!GUILD_ID) return;
     fetch("/api/bot/channels")
@@ -144,53 +141,92 @@ export default function MusicPage() {
       .catch(() => {});
   }, []);
 
-  // ── Auto-select user's current VC
+  // ΓöÇΓöÇ Auto-select user's current VC
   useEffect(() => {
     if (!discordUserId || channels.length === 0) return;
     const userCh = channels.find((c) => c.memberIds?.includes(discordUserId));
     if (userCh) setSelectedChannel(userCh.id);
   }, [discordUserId, channels]);
 
-  // ── Status polling (2 s) + local elapsed tick
+  // Keep refs in sync
+  useEffect(() => {
+    currentSongUrlRef.current = status?.song?.url ?? null;
+  }, [status]);
+
+  // Auto-show queue & clear optimistic entries when real queue arrives
+  useEffect(() => {
+    const len = status?.queueLength ?? 0;
+    if (len > 1 && len > prevQueueLengthRef.current) {
+      setShowQueue(true);
+    }
+    // Once bot confirms queue entries, remove matching optimistic ones
+    if (status?.queue && status.queue.length > 0) {
+      const realNames = new Set(status.queue.map((q) => q.name));
+      setOptimisticQueue((prev) => prev.filter((o) => !realNames.has(o.title)));
+    }
+    prevQueueLengthRef.current = len;
+  }, [status?.queueLength, status?.queue]);
+
+  // Stop rapid polling helper
+  const stopRapidPoll = useCallback(() => {
+    if (rapidPollRef.current) {
+      clearInterval(rapidPollRef.current);
+      rapidPollRef.current = null;
+    }
+    if (rapidTimeoutRef.current) {
+      clearTimeout(rapidTimeoutRef.current);
+      rapidTimeoutRef.current = null;
+    }
+    transitioningRef.current = false;
+    setTransitioning(false);
+    preActionUrlRef.current = null;
+  }, []);
+
+  // Start rapid polling until song URL changes (or timeout)
+  const startTransition = useCallback(
+    (prevUrl: string | null) => {
+      preActionUrlRef.current = prevUrl;
+      transitioningRef.current = true;
+      setTransitioning(true);
+      if (rapidPollRef.current) clearInterval(rapidPollRef.current);
+      if (rapidTimeoutRef.current) clearTimeout(rapidTimeoutRef.current);
+      // Auto-clear after 15 s in case bot never changes
+      rapidTimeoutRef.current = setTimeout(stopRapidPoll, 15_000);
+    },
+    [stopRapidPoll],
+  );
+
+  // ΓöÇΓöÇ Status polling (2 s)
   const fetchStatus = useCallback(async () => {
     try {
       const s = await musicStatus();
+      // Detect song change during transition
+      if (transitioningRef.current) {
+        const urlChanged = s.song?.url !== preActionUrlRef.current;
+        if (urlChanged) stopRapidPoll();
+      }
       setStatus(s);
       if (s.volume !== undefined) setVolume(s.volume);
     } catch {}
-  }, []);
+  }, [stopRapidPoll]);
 
   useEffect(() => {
     fetchStatus();
     pollRef.current = setInterval(fetchStatus, 2000);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
+      if (rapidPollRef.current) clearInterval(rapidPollRef.current);
+      if (rapidTimeoutRef.current) clearTimeout(rapidTimeoutRef.current);
     };
   }, [fetchStatus]);
 
-  // Locally tick elapsed every second to keep progress bar smooth
-  // NOTE: elapsed and duration are both in SECONDS (Zyra divides Lavalink ms by 1000)
-  useEffect(() => {
-    if (elapsedRef.current) clearInterval(elapsedRef.current);
-    elapsedRef.current = setInterval(() => {
-      setStatus((prev) => {
-        if (!prev?.song || !prev.playing || prev.paused) return prev;
-        const next = Math.min(prev.elapsed + 1, prev.song.duration);
-        return { ...prev, elapsed: next };
-      });
-    }, 1000);
-    return () => {
-      if (elapsedRef.current) clearInterval(elapsedRef.current);
-    };
-  }, []);
-
-  // ── Search debounce
+  // ΓöÇΓöÇ Search debounce
   useEffect(() => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
     searchDebounce.current = setTimeout(() => setDebouncedQuery(query), 400);
   }, [query]);
 
-  // ── YouTube feed
+  // ΓöÇΓöÇ YouTube feed
   useEffect(() => {
     setLoadingVideos(true);
     setVideoError(null);
@@ -223,19 +259,39 @@ export default function MusicPage() {
   const handlePlay = async (video: Video) => {
     if (!selectedChannel) return;
     setLoadingPlay(video.id);
+    // Optimistically add to queue immediately for instant feedback
+    const hasCurrent = !!currentSongUrlRef.current;
+    if (hasCurrent) {
+      setOptimisticQueue((prev) => [
+        ...prev,
+        {
+          id: video.id,
+          title: video.title,
+          channel: video.channel,
+          thumbnail: video.thumbnail,
+          duration: video.duration,
+        },
+      ]);
+      setShowQueue(true);
+    }
     try {
+      const prevUrl = currentSongUrlRef.current;
       await musicPlay(
         selectedChannel,
         video.url,
         discordUserId ?? "web",
         session?.user?.user_metadata?.full_name ?? "Web Player",
       );
-      multiPoll([800, 1800, 3000]);
-    } catch {}
+      startTransition(prevUrl);
+      rapidPollRef.current = setInterval(fetchStatus, 600);
+    } catch {
+      // Revert optimistic entry on error
+      setOptimisticQueue((prev) => prev.filter((o) => o.id !== video.id));
+    }
     setLoadingPlay(null);
   };
 
-  // ── Optimistic + fire-and-forget control handlers ─────────────────────────
+  // ΓöÇΓöÇ Optimistic + fire-and-forget control handlers ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
   const handleToggle = useCallback(() => {
     setStatus((prev) =>
       prev ? { ...prev, paused: !prev.paused, playing: prev.paused } : prev,
@@ -245,11 +301,12 @@ export default function MusicPage() {
   }, [multiPoll]);
 
   const handleSkip = useCallback(() => {
-    // Optimistically clear elapsed so progress resets
-    setStatus((prev) => (prev ? { ...prev, elapsed: 0 } : prev));
+    const prevUrl = currentSongUrlRef.current;
+    startTransition(prevUrl);
     musicSkip().catch(() => {});
-    multiPoll([900, 1800, 3200]);
-  }, [multiPoll]);
+    // Rapid poll every 600 ms until song changes
+    rapidPollRef.current = setInterval(fetchStatus, 600);
+  }, [startTransition, fetchStatus]);
 
   const handleStop = useCallback(() => {
     setStatus(null);
@@ -292,8 +349,9 @@ export default function MusicPage() {
               <h1 className="text-2xl font-bold tracking-tight">Music</h1>
               {status?.song && (
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {isPlaying ? "▶ Playing" : "⏸ Paused"} in{" "}
-                  {channels.find((c) => c.id === selectedChannel)?.name ?? "…"}
+                  {isPlaying ? "Γû╢ Playing" : "ΓÅ╕ Paused"} in{" "}
+                  {channels.find((c) => c.id === selectedChannel)?.name ??
+                    "ΓÇª"}
                 </p>
               )}
             </div>
@@ -318,14 +376,14 @@ export default function MusicPage() {
                 onChange={(e) => setSelectedChannel(e.target.value)}
                 className="text-sm bg-muted border border-border/50 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40"
               >
-                {channels.length === 0 && <option value="">Loading…</option>}
+                {channels.length === 0 && <option value="">LoadingΓÇª</option>}
                 {channels.map((c) => {
                   const isUserHere = discordUserId
                     ? c.memberIds?.includes(discordUserId)
                     : false;
                   return (
                     <option key={c.id} value={c.id}>
-                      {isUserHere ? "● " : ""}
+                      {isUserHere ? "ΓùÅ " : ""}
                       {c.name}
                       {c.memberCount > 0 ? ` (${c.memberCount})` : ""}
                     </option>
@@ -351,7 +409,7 @@ export default function MusicPage() {
             </svg>
             <input
               type="text"
-              placeholder="Search for songs…"
+              placeholder="Search for songsΓÇª"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border/50 bg-muted/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground/60"
@@ -519,236 +577,391 @@ export default function MusicPage() {
           </motion.div>
         )}
 
-        {/* Mini Player */}
+        {/* ── Mini Player ─────────────────────────────────────────────── */}
         <AnimatePresence>
-          {status?.song && (
+          {(status?.song || transitioning) && (
             <motion.div
-              initial={{ y: 100, opacity: 0 }}
+              initial={{ y: 120, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
-              exit={{ y: 100, opacity: 0 }}
-              transition={{ type: "spring", stiffness: 260, damping: 28 }}
+              exit={{ y: 120, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 340, damping: 38 }}
               className="fixed bottom-0 left-0 right-0 z-50 md:left-72"
             >
-              <div className="mx-auto max-w-5xl m-3">
-                <div className="rounded-2xl bg-zinc-900/95 backdrop-blur-xl border border-white/10 shadow-2xl p-3 flex flex-col gap-2">
-                  <ProgressBar
-                    elapsed={status.elapsed ?? 0}
-                    duration={status.song.duration}
-                  />
-
-                  <div className="flex items-center gap-3">
-                    {/* Thumbnail */}
-                    <div className="relative shrink-0 w-11 h-11 rounded-lg overflow-hidden">
+              <div className="mx-3 mb-3">
+                <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] shadow-[0_-2px_60px_rgba(0,0,0,0.7)]">
+                  {/* Ambient background */}
+                  <div className="absolute inset-0 pointer-events-none">
+                    {status?.song && (
                       <img
                         src={status.song.thumbnail}
-                        alt={status.song.name}
-                        className="w-full h-full object-cover"
+                        alt=""
+                        className="w-full h-full object-cover scale-150 blur-[40px] opacity-20"
                       />
-                      {isPlaying && (
-                        <div className="absolute inset-0 bg-black/30 flex items-end justify-center pb-1">
-                          <div className="flex gap-0.5 items-end h-3">
-                            {[0, 150, 75].map((d, i) => (
-                              <motion.div
-                                key={i}
-                                className="w-0.5 bg-blue-400 rounded-full"
-                                animate={{ height: ["2px", "10px", "2px"] }}
-                                transition={{
-                                  repeat: Infinity,
-                                  duration: 0.8,
-                                  delay: d / 1000,
-                                }}
-                              />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Song info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">
-                        {status.song.name}
-                      </p>
-                      <p className="text-xs text-white/50 truncate">
-                        {status.song.author}
-                      </p>
-                    </div>
-
-                    {/* Controls */}
-                    <div className="flex items-center gap-1 shrink-0">
-                      <button
-                        onClick={handleShuffle}
-                        className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M16 3h5m0 0v5m0-5l-6 6M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-1M15 4l6 6M5 21a2 2 0 01-2-2v-1c0-8.284 6.716-15 15-15h1"
-                          />
-                        </svg>
-                      </button>
-
-                      <button
-                        onClick={handleToggle}
-                        className="p-2 rounded-xl bg-white text-black hover:bg-white/80 transition-colors"
-                      >
-                        {isPlaying ? (
-                          <svg
-                            className="h-5 w-5"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
-                          </svg>
-                        ) : (
-                          <svg
-                            className="h-5 w-5 ml-0.5"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
-                        )}
-                      </button>
-
-                      <button
-                        onClick={handleSkip}
-                        className="p-2 rounded-lg text-white/50 hover:text-white hover:bg-white/10 transition-colors"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
-                        </svg>
-                      </button>
-
-                      <button
-                        onClick={handleLoop}
-                        className={`p-2 rounded-lg transition-colors text-xs font-medium ${
-                          status.repeatMode > 0
-                            ? "text-blue-400 hover:bg-blue-400/10"
-                            : "text-white/50 hover:text-white hover:bg-white/10"
-                        }`}
-                        title={`Loop: ${loopLabels[status.repeatMode]}`}
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          {status.repeatMode === 1 ? (
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15M12 8v8m0-8l-2 2m2-2l2 2"
-                            />
-                          ) : (
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                            />
-                          )}
-                        </svg>
-                      </button>
-
-                      <button
-                        onClick={() => setShowQueue((p) => !p)}
-                        className={`p-2 rounded-lg transition-colors text-xs ${
-                          showQueue
-                            ? "text-primary"
-                            : "text-white/50 hover:text-white hover:bg-white/10"
-                        }`}
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M4 6h16M4 10h16M4 14h10"
-                          />
-                        </svg>
-                      </button>
-
-                      <button
-                        onClick={handleStop}
-                        className="p-2 rounded-lg text-white/30 hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                      >
-                        <svg
-                          className="h-4 w-4"
-                          fill="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path d="M6 6h12v12H6z" />
-                        </svg>
-                      </button>
-
-                      {/* Volume */}
-                      <div className="hidden sm:flex items-center gap-2 ml-1 text-white/50">
-                        <VolumeIcon vol={volume} />
-                        <input
-                          type="range"
-                          min={0}
-                          max={100}
-                          value={volume}
-                          onChange={handleVolumeChange}
-                          className="w-20 accent-white h-1 cursor-pointer"
-                        />
-                      </div>
-                    </div>
+                    )}
+                    <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-md" />
                   </div>
 
-                  {/* Queue drawer */}
+                  {/* Loading overlay while transitioning */}
                   <AnimatePresence>
-                    {showQueue && status.queueLength > 1 && (
+                    {transitioning && (
                       <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-20 flex items-center justify-center gap-2 bg-zinc-950/60 backdrop-blur-sm rounded-2xl"
                       >
-                        <div className="pt-1 border-t border-white/10">
-                          <p className="text-[10px] uppercase tracking-widest text-white/30 mb-2 px-1">
-                            Up next · {status.queueLength - 1} song
-                            {status.queueLength !== 2 ? "s" : ""}
-                          </p>
-                          <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-                            {status.queue.map((entry) => (
-                              <div key={entry.index} className="shrink-0 w-36">
-                                <div className="aspect-video rounded-lg overflow-hidden bg-white/5">
-                                  <img
-                                    src={entry.thumbnail}
-                                    alt={entry.name}
-                                    className="w-full h-full object-cover opacity-80"
-                                  />
-                                </div>
-                                <p className="text-[10px] text-white/60 mt-1 truncate">
-                                  {entry.name}
-                                </p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
+                        <svg
+                          className="h-4 w-4 animate-spin text-white/50"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                        >
+                          <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                          />
+                          <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                          />
+                        </svg>
+                        <span className="text-xs text-white/40 font-medium">
+                          Loading…
+                        </span>
                       </motion.div>
                     )}
                   </AnimatePresence>
+
+                  <div className="relative">
+                    {status?.song ? (
+                      <>
+                        {/* ── Queue panel ── */}
+                        <AnimatePresence>
+                          {showQueue && (
+                            <motion.div
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{
+                                duration: 0.25,
+                                ease: [0.25, 0.46, 0.45, 0.94],
+                              }}
+                              className="overflow-hidden"
+                            >
+                              <div className="px-3 pt-3 pb-2.5 border-b border-white/[0.05]">
+                                {/* Now playing row */}
+                                <div className="flex items-center gap-2 mb-3">
+                                  <div className="flex gap-[3px] items-end h-4 shrink-0">
+                                    {isPlaying ? (
+                                      [0, 200, 100].map((d, i) => (
+                                        <motion.div
+                                          key={i}
+                                          className="w-[3px] bg-indigo-400 rounded-full"
+                                          animate={{
+                                            height: ["4px", "14px", "4px"],
+                                          }}
+                                          transition={{
+                                            repeat: Infinity,
+                                            duration: 0.7,
+                                            delay: d / 1000,
+                                          }}
+                                        />
+                                      ))
+                                    ) : (
+                                      <div className="w-[3px] h-[10px] bg-white/30 rounded-full" />
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] font-semibold text-white truncate">
+                                      {status.song.name}
+                                    </p>
+                                    <p className="text-[10px] text-white/35 truncate">
+                                      {status.song.author}
+                                    </p>
+                                  </div>
+                                  <span className="text-[10px] text-white/25 shrink-0">
+                                    Now playing
+                                  </span>
+                                </div>
+
+                                {/* Up next list */}
+                                {status.queue.length > 0 ||
+                                optimisticQueue.length > 0 ? (
+                                  <>
+                                    <p className="text-[9px] uppercase tracking-[0.12em] text-white/20 font-medium mb-2">
+                                      Up next ·{" "}
+                                      {status.queueLength -
+                                        1 +
+                                        optimisticQueue.length}{" "}
+                                      track
+                                      {status.queueLength -
+                                        1 +
+                                        optimisticQueue.length !==
+                                      1
+                                        ? "s"
+                                        : ""}
+                                    </p>
+                                    <div className="flex gap-2.5 overflow-x-auto pb-0.5 scrollbar-none">
+                                      {status.queue.map((entry) => (
+                                        <div
+                                          key={entry.index}
+                                          className="shrink-0 w-28 group"
+                                        >
+                                          <div className="aspect-video rounded-lg overflow-hidden bg-white/5 ring-1 ring-white/[0.06]">
+                                            <img
+                                              src={entry.thumbnail}
+                                              alt={entry.name}
+                                              className="w-full h-full object-cover opacity-75 group-hover:opacity-100 transition-opacity duration-200"
+                                            />
+                                          </div>
+                                          <p className="text-[10px] text-white/45 mt-1 truncate leading-tight">
+                                            {entry.name}
+                                          </p>
+                                          <p className="text-[9px] text-white/25 truncate">
+                                            {entry.author}
+                                          </p>
+                                        </div>
+                                      ))}
+                                      {optimisticQueue.map((entry) => (
+                                        <div
+                                          key={entry.id}
+                                          className="shrink-0 w-28 opacity-55"
+                                        >
+                                          <div className="relative aspect-video rounded-lg overflow-hidden bg-white/5 ring-1 ring-indigo-400/20">
+                                            <img
+                                              src={entry.thumbnail}
+                                              alt={entry.title}
+                                              className="w-full h-full object-cover opacity-50"
+                                            />
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                              <svg
+                                                className="h-3 w-3 animate-spin text-white/60"
+                                                fill="none"
+                                                viewBox="0 0 24 24"
+                                              >
+                                                <circle
+                                                  className="opacity-25"
+                                                  cx="12"
+                                                  cy="12"
+                                                  r="10"
+                                                  stroke="currentColor"
+                                                  strokeWidth="4"
+                                                />
+                                                <path
+                                                  className="opacity-75"
+                                                  fill="currentColor"
+                                                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                                                />
+                                              </svg>
+                                            </div>
+                                          </div>
+                                          <p className="text-[10px] text-white/35 mt-1 truncate leading-tight">
+                                            {entry.title}
+                                          </p>
+                                          <p className="text-[9px] text-white/20 truncate">
+                                            {entry.channel}
+                                          </p>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </>
+                                ) : (
+                                  <p className="text-[11px] text-white/20 py-1">
+                                    Queue is empty
+                                  </p>
+                                )}
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+
+                        {/* ── Controls bar ── */}
+                        <div className="flex items-center gap-2.5 px-3 py-2.5">
+                          <motion.div
+                            key={status.song.url}
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ duration: 0.25 }}
+                            className="shrink-0 w-10 h-10 rounded-xl overflow-hidden shadow-lg ring-1 ring-white/10"
+                          >
+                            <img
+                              src={status.song.thumbnail}
+                              alt={status.song.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </motion.div>
+
+                          <div className="flex-1 min-w-0">
+                            <motion.p
+                              key={status.song.name}
+                              initial={{ opacity: 0, y: 3 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ duration: 0.2 }}
+                              className="text-sm font-semibold text-white truncate leading-tight"
+                            >
+                              {status.song.name}
+                            </motion.p>
+                            <p className="text-[11px] text-white/35 truncate mt-0.5">
+                              {status.song.author}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <button
+                              onClick={handleShuffle}
+                              title="Shuffle"
+                              className="p-1.5 rounded-lg text-white/35 hover:text-white/70 hover:bg-white/8 transition-all duration-150"
+                            >
+                              <svg
+                                className="h-3.5 w-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M16 3h5m0 0v5m0-5l-6 6M5 3a2 2 0 00-2 2v1c0 8.284 6.716 15 15 15h1a2 2 0 002-2v-1M15 4l6 6M5 21a2 2 0 01-2-2v-1c0-8.284 6.716-15 15-15h1"
+                                />
+                              </svg>
+                            </button>
+
+                            <motion.button
+                              onClick={handleToggle}
+                              whileTap={{ scale: 0.88 }}
+                              className="mx-1.5 p-2.5 rounded-xl bg-white text-black hover:bg-white/90 active:bg-white/70 shadow-md transition-all duration-150"
+                            >
+                              {isPlaying ? (
+                                <svg
+                                  className="h-4 w-4"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                                </svg>
+                              ) : (
+                                <svg
+                                  className="h-4 w-4 ml-0.5"
+                                  fill="currentColor"
+                                  viewBox="0 0 24 24"
+                                >
+                                  <path d="M8 5v14l11-7z" />
+                                </svg>
+                              )}
+                            </motion.button>
+
+                            <button
+                              onClick={handleSkip}
+                              title="Skip"
+                              className="p-1.5 rounded-lg text-white/35 hover:text-white/70 hover:bg-white/8 transition-all duration-150"
+                            >
+                              <svg
+                                className="h-3.5 w-3.5"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z" />
+                              </svg>
+                            </button>
+
+                            <button
+                              onClick={handleLoop}
+                              title={`Loop: ${loopLabels[status.repeatMode]}`}
+                              className={`p-1.5 rounded-lg transition-all duration-150 ${status.repeatMode > 0 ? "text-indigo-400 bg-indigo-400/10" : "text-white/35 hover:text-white/70 hover:bg-white/8"}`}
+                            >
+                              <svg
+                                className="h-3.5 w-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                {status.repeatMode === 1 ? (
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15M12 8v8m0-8l-2 2m2-2l2 2"
+                                  />
+                                ) : (
+                                  <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                                  />
+                                )}
+                              </svg>
+                            </button>
+
+                            <button
+                              onClick={() => setShowQueue((p) => !p)}
+                              title="Queue"
+                              className={`relative p-1.5 rounded-lg transition-all duration-150 ${showQueue ? "text-indigo-400 bg-indigo-400/10" : "text-white/35 hover:text-white/70 hover:bg-white/8"}`}
+                            >
+                              <svg
+                                className="h-3.5 w-3.5"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4 6h16M4 10h16M4 14h10"
+                                />
+                              </svg>
+                              {(status.queueLength > 1 ||
+                                optimisticQueue.length > 0) && (
+                                <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-[3px] rounded-full bg-indigo-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                                  {status.queueLength -
+                                    1 +
+                                    optimisticQueue.length}
+                                </span>
+                              )}
+                            </button>
+
+                            <button
+                              onClick={handleStop}
+                              title="Stop"
+                              className="p-1.5 rounded-lg text-white/20 hover:text-red-400 hover:bg-red-400/10 transition-all duration-150"
+                            >
+                              <svg
+                                className="h-3.5 w-3.5"
+                                fill="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path d="M6 6h12v12H6z" />
+                              </svg>
+                            </button>
+
+                            <div className="hidden sm:flex items-center gap-1.5 ml-2 pl-2.5 border-l border-white/[0.08] text-white/35">
+                              <VolumeIcon vol={volume} />
+                              <input
+                                type="range"
+                                min={0}
+                                max={100}
+                                value={volume}
+                                onChange={handleVolumeChange}
+                                className="w-16 accent-white h-0.5 cursor-pointer"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="h-14 flex items-center justify-center">
+                        <span className="text-xs text-white/25">
+                          Connecting…
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>
