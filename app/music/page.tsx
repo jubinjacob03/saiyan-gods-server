@@ -169,12 +169,13 @@ export default function MusicPage() {
   }, [fetchStatus]);
 
   // Locally tick elapsed every second to keep progress bar smooth
+  // NOTE: elapsed and duration are both in SECONDS (Zyra divides Lavalink ms by 1000)
   useEffect(() => {
     if (elapsedRef.current) clearInterval(elapsedRef.current);
     elapsedRef.current = setInterval(() => {
       setStatus((prev) => {
         if (!prev?.song || !prev.playing || prev.paused) return prev;
-        const next = Math.min(prev.elapsed + 1000, prev.song.duration);
+        const next = Math.min(prev.elapsed + 1, prev.song.duration);
         return { ...prev, elapsed: next };
       });
     }, 1000);
@@ -245,7 +246,7 @@ export default function MusicPage() {
 
   const handleSkip = useCallback(() => {
     // Optimistically clear elapsed so progress resets
-    setStatus((prev) => prev ? { ...prev, elapsed: 0 } : prev);
+    setStatus((prev) => (prev ? { ...prev, elapsed: 0 } : prev));
     musicSkip().catch(() => {});
     multiPoll([900, 1800, 3200]);
   }, [multiPoll]);
@@ -278,7 +279,6 @@ export default function MusicPage() {
     [],
   );
 
-
   const isPlaying = status?.playing && !status?.paused;
   const loopLabels = ["Off", "Song", "Queue"];
 
@@ -300,8 +300,18 @@ export default function MusicPage() {
 
             {/* Voice channel selector */}
             <div className="flex items-center gap-2">
-              <svg className="h-4 w-4 text-muted-foreground shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+              <svg
+                className="h-4 w-4 text-muted-foreground shrink-0"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15.536 8.464a5 5 0 010 7.072M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                />
               </svg>
               <select
                 value={selectedChannel}
@@ -315,7 +325,8 @@ export default function MusicPage() {
                     : false;
                   return (
                     <option key={c.id} value={c.id}>
-                      {isUserHere ? "● " : ""}{c.name}
+                      {isUserHere ? "● " : ""}
+                      {c.name}
                       {c.memberCount > 0 ? ` (${c.memberCount})` : ""}
                     </option>
                   );
