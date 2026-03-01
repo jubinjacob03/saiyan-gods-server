@@ -519,14 +519,30 @@ export default function SettingsPage() {
             <Card className="border-none shadow-lg">
               <CardHeader className="pb-6">
                 <div className="flex items-center gap-3">
-                  <div className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.primary}`}>
-                    <svg className={`${designTokens.icons.md} ${designTokens.iconColors.primary}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                  <div
+                    className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.primary}`}
+                  >
+                    <svg
+                      className={`${designTokens.icons.md} ${designTokens.iconColors.primary}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                      />
                     </svg>
                   </div>
                   <div>
-                    <CardTitle className={designTokens.typography.h2}>Appearance</CardTitle>
-                    <CardDescription className={`${designTokens.typography.smallMuted} mt-1`}>
+                    <CardTitle className={designTokens.typography.h2}>
+                      Appearance
+                    </CardTitle>
+                    <CardDescription
+                      className={`${designTokens.typography.smallMuted} mt-1`}
+                    >
                       Choose how the dashboard looks
                     </CardDescription>
                   </div>
@@ -535,15 +551,23 @@ export default function SettingsPage() {
               <CardContent>
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className={designTokens.typography.body + " font-medium"}>
+                    <p
+                      className={designTokens.typography.body + " font-medium"}
+                    >
                       Dark Mode
                     </p>
                     <p className={designTokens.typography.smallMuted}>
-                      {mounted ? (resolvedTheme === "dark" ? "Dark theme active" : "Light theme active") : "Loading theme…"}
+                      {mounted
+                        ? resolvedTheme === "dark"
+                          ? "Dark theme active"
+                          : "Light theme active"
+                        : "Loading theme…"}
                     </p>
                   </div>
                   <button
-                    onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                    onClick={() =>
+                      setTheme(resolvedTheme === "dark" ? "light" : "dark")
+                    }
                     disabled={!mounted}
                     aria-label="Toggle dark mode"
                     className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
@@ -554,15 +578,25 @@ export default function SettingsPage() {
                   >
                     <span
                       className={`inline-flex h-5 w-5 items-center justify-center rounded-full bg-white shadow-md transform transition-transform duration-300 ${
-                        mounted && resolvedTheme === "dark" ? "translate-x-6" : "translate-x-1"
+                        mounted && resolvedTheme === "dark"
+                          ? "translate-x-6"
+                          : "translate-x-1"
                       }`}
                     >
                       {mounted && resolvedTheme === "dark" ? (
-                        <svg className="h-3 w-3 text-primary" fill="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          className="h-3 w-3 text-primary"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path d="M21.752 15.002A9.718 9.718 0 0118 15.75 9.75 9.75 0 018.25 6c0-1.33.266-2.597.748-3.752A9.753 9.753 0 003 12c0 5.385 4.365 9.75 9.75 9.75 4.662 0 8.574-3.254 9.753-7.748-.001 0-.001-.001-.001-.001z" />
                         </svg>
                       ) : (
-                        <svg className="h-3 w-3 text-yellow-500" fill="currentColor" viewBox="0 0 24 24">
+                        <svg
+                          className="h-3 w-3 text-yellow-500"
+                          fill="currentColor"
+                          viewBox="0 0 24 24"
+                        >
                           <path d="M12 2.25a.75.75 0 01.75.75v2.25a.75.75 0 01-1.5 0V3a.75.75 0 01.75-.75zM7.5 12a4.5 4.5 0 119 0 4.5 4.5 0 01-9 0zM18.894 6.166a.75.75 0 00-1.06-1.06l-1.591 1.59a.75.75 0 101.06 1.061l1.591-1.59zM21.75 12a.75.75 0 01-.75.75h-2.25a.75.75 0 010-1.5H21a.75.75 0 01.75.75zM17.834 18.894a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 10-1.061 1.06l1.59 1.591zM12 18a.75.75 0 01.75.75V21a.75.75 0 01-1.5 0v-2.25A.75.75 0 0112 18zM7.758 17.303a.75.75 0 00-1.061-1.06l-1.591 1.59a.75.75 0 001.06 1.061l1.591-1.59zM6 12a.75.75 0 01-.75.75H3a.75.75 0 010-1.5h2.25A.75.75 0 016 12zM6.697 7.757a.75.75 0 001.06-1.06l-1.59-1.591a.75.75 0 00-1.061 1.06l1.59 1.591z" />
                         </svg>
                       )}

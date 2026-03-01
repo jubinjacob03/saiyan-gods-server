@@ -682,7 +682,7 @@ export default function PrivateVCPage() {
                                   actionLoading ===
                                   `${vc.channelId}-remove-${m.id}`
                                 }
-                                className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500 hover:text-red-400 disabled:opacity-50"
+                                className="transition-colors text-red-500 hover:text-red-400 active:text-red-300 disabled:opacity-50"
                                 title="Remove member"
                               >
                                 {actionLoading ===

@@ -329,7 +329,10 @@ function DroppableCategorySection({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id });
   const [isHovered, setIsHovered] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showAll = isHovered || isExpanded;
 
   const handleMouseEnter = () => {
     hoverTimer.current = setTimeout(() => setIsHovered(true), 700);
@@ -355,13 +358,14 @@ function DroppableCategorySection({
     >
       {/* Section header — visual drop indicator */}
       <motion.div
-        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all duration-200 ${
+        className={`flex items-center gap-3 px-4 py-2.5 rounded-xl border transition-all duration-200 cursor-pointer select-none ${
           isOver
             ? "bg-primary/10 border-primary/40 shadow-inner"
             : isDraggingAny
               ? "border-dashed border-primary/30 bg-muted/30"
               : "border-border/40 bg-muted/20"
         }`}
+        onClick={() => setIsExpanded((p) => !p)}
         whileHover={{ scale: 1.01 }}
         transition={{ duration: 0.2 }}
       >
@@ -381,7 +385,7 @@ function DroppableCategorySection({
           <div className="flex items-center gap-1">
             {onEditCategory && (
               <button
-                onClick={onEditCategory}
+                onClick={(e) => { e.stopPropagation(); onEditCategory(); }}
                 className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 title="Rename category"
               >
@@ -402,7 +406,7 @@ function DroppableCategorySection({
             )}
             {onDeleteCategory && (
               <button
-                onClick={onDeleteCategory}
+                onClick={(e) => { e.stopPropagation(); onDeleteCategory(); }}
                 className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                 title="Delete category"
               >
@@ -423,6 +427,17 @@ function DroppableCategorySection({
             )}
           </div>
         )}
+        {/* Expand/collapse chevron — always visible for tap feedback */}
+        {sounds.length > 2 && !isDraggingAny && (
+          <motion.svg
+            animate={{ rotate: showAll ? 180 : 0 }}
+            transition={{ duration: 0.2 }}
+            className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0"
+            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </motion.svg>
+        )}
       </motion.div>
       {/* Sound cards — 2-col layout; max 3 rows then scroll */}
       {sounds.length > 0 ? (
@@ -431,7 +446,7 @@ function DroppableCategorySection({
           style={{ maxHeight: "calc(3 * 64px + 2 * 6px + 2px)" }}
           initial={false}
           animate={{
-            maxHeight: isHovered
+            maxHeight: showAll
               ? "calc(10 * 64px + 9 * 6px + 2px)"
               : "calc(3 * 64px + 2 * 6px + 2px)",
           }}
@@ -439,7 +454,7 @@ function DroppableCategorySection({
         >
           <div className="grid gap-1.5 pb-px grid-cols-2">
             <AnimatePresence mode="popLayout">
-              {(isHovered ? sounds : sounds.slice(0, 2)).map((sound, index) => (
+              {(showAll ? sounds : sounds.slice(0, 4)).map((sound, index) => (
                 <motion.div
                   key={sound.id}
                   initial={{ opacity: 0, y: -10 }}
@@ -447,7 +462,7 @@ function DroppableCategorySection({
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{
                     duration: 0.2,
-                    delay: isHovered ? index * 0.03 : 0,
+                    delay: showAll ? index * 0.03 : 0,
                     ease: "easeOut",
                   }}
                 >
