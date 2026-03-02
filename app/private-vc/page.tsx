@@ -228,6 +228,7 @@ export default function PrivateVCPage() {
     open: boolean;
   } | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null); // channelId pending confirm
+  const [refreshSpinning, setRefreshSpinning] = useState(false);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -246,6 +247,12 @@ export default function PrivateVCPage() {
       setLoadingVCs(false);
     }
   }, []);
+
+  const handleRefreshClick = useCallback(async () => {
+    setRefreshSpinning(true);
+    await Promise.all([fetchVCs(), new Promise((r) => setTimeout(r, 800))]);
+    setRefreshSpinning(false);
+  }, [fetchVCs]);
 
   const fetchMembers = useCallback(async () => {
     try {
@@ -490,15 +497,15 @@ export default function PrivateVCPage() {
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchVCs}
-              disabled={loadingVCs}
+              onClick={handleRefreshClick}
+              disabled={refreshSpinning}
             >
               <motion.svg
-                animate={loadingVCs ? { rotate: 360 } : { rotate: 0 }}
+                animate={refreshSpinning ? { rotate: 360 } : { rotate: 0 }}
                 transition={
-                  loadingVCs
-                    ? { repeat: Infinity, duration: 1, ease: "linear" }
-                    : {}
+                  refreshSpinning
+                    ? { repeat: Infinity, duration: 0.8, ease: "linear" }
+                    : { duration: 0.3 }
                 }
                 className={designTokens.icons.sm}
                 fill="none"

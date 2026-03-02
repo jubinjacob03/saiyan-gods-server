@@ -16,6 +16,8 @@ import { designTokens } from "@/lib/design-tokens";
 import { createClient } from "@/lib/supabase";
 import ConfirmDialog from "@/components/ConfirmDialog";
 
+const OWNER_ROLE_ID = "1473075468088377352";
+
 const container = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.1 } },
@@ -61,6 +63,8 @@ export default function SettingsPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   const [user, setUser] = useState<UserProfile | null>(null);
+  const [discordId, setDiscordId] = useState("");
+  const [isOwner, setIsOwner] = useState<boolean | null>(null);
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [clearDone, setClearDone] = useState(false);
@@ -124,6 +128,10 @@ export default function SettingsPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
+        const id =
+          user.identities?.find((i) => i.provider === "discord")
+            ?.identity_data?.sub || user.id;
+        setDiscordId(id);
         setUser({
           name:
             user.user_metadata?.full_name ||
@@ -131,10 +139,24 @@ export default function SettingsPage() {
             "Unknown",
           email: user.email || "",
           avatar: user.user_metadata?.avatar_url || "",
-          discordId:
-            user.identities?.find((i) => i.provider === "discord")
-              ?.identity_data?.sub || user.id,
+          discordId: id,
         });
+        // Restore per-user theme preference
+        const savedTheme = localStorage.getItem(`theme_${id}`);
+        if (savedTheme) setTheme(savedTheme);
+        // Check owner role
+        try {
+          const res = await fetch(`/api/bot/members?userId=${id}`);
+          if (res.ok) {
+            const json = await res.json();
+            const roleIds: string[] = json.data?.roleIds ?? [];
+            setIsOwner(roleIds.includes(OWNER_ROLE_ID));
+          } else {
+            setIsOwner(false);
+          }
+        } catch {
+          setIsOwner(false);
+        }
       }
     } catch {}
   };
@@ -565,9 +587,11 @@ export default function SettingsPage() {
                     </p>
                   </div>
                   <button
-                    onClick={() =>
-                      setTheme(resolvedTheme === "dark" ? "light" : "dark")
-                    }
+                    onClick={() => {
+                      const next = resolvedTheme === "dark" ? "light" : "dark";
+                      setTheme(next);
+                      if (discordId) localStorage.setItem(`theme_${discordId}`, next);
+                    }}
                     disabled={!mounted}
                     aria-label="Toggle dark mode"
                     className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 ${
@@ -607,8 +631,8 @@ export default function SettingsPage() {
             </Card>
           </motion.div>
 
-          {/* Danger Zone — Clear Library */}
-          <motion.div variants={item}>
+          {/* Danger Zone — owner only */}
+          {isOwner === true && <motion.div variants={item}>
             <Card className="border-red-500/20 shadow-lg">
               <CardHeader className="pb-6">
                 <div className="flex items-center gap-3">
@@ -729,7 +753,7 @@ export default function SettingsPage() {
                 </div>
               </CardContent>
             </Card>
-          </motion.div>
+          </motion.div>}
 
           {/* About */}
           <motion.div variants={item}>
