@@ -28,13 +28,22 @@ export async function POST(req: NextRequest) {
   try {
     const { volume } = await req.json();
     if (typeof volume !== "number" || volume < 0 || volume > 100) {
-      return NextResponse.json({ ok: false, error: "Invalid volume" }, { status: 400 });
+      return NextResponse.json(
+        { ok: false, error: "Invalid volume" },
+        { status: 400 },
+      );
     }
     const supabase = getSupabase();
-    const { error } = await supabase.from("bot_settings").upsert(
-      { key: "music_volume", value: String(Math.round(volume)), updated_at: new Date().toISOString() },
-      { onConflict: "key" },
-    );
+    const { error } = await supabase
+      .from("bot_settings")
+      .upsert(
+        {
+          key: "music_volume",
+          value: String(Math.round(volume)),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "key" },
+      );
     if (error) throw error;
     return NextResponse.json({ ok: true });
   } catch {
