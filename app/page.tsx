@@ -268,7 +268,7 @@ export default function Home() {
           animate="show"
           className={`stat-cards grid grid-cols-2 ${designTokens.spacing.cardGap} md:grid-cols-2 lg:grid-cols-4`}
         >
-          {/* Bot Status */
+          {/* Bot Status */}
           <motion.div variants={item}>
             <Card className={`${designTokens.cards.default} h-full`}>
               <CardHeader className={designTokens.components.cardPadding}>
@@ -432,7 +432,7 @@ export default function Home() {
           animate="show"
           className={`stat-cards grid grid-cols-2 ${designTokens.spacing.cardGap} md:grid-cols-2 lg:grid-cols-4`}
         >
-          {/* Members cached */
+          {/* Members cached */}
           <motion.div variants={item}>
             <Card className={`${designTokens.cards.default} h-full`}>
               <CardHeader className={designTokens.components.cardPadding}>
@@ -601,7 +601,7 @@ export default function Home() {
           animate="show"
           className={`stat-cards grid grid-cols-2 ${designTokens.spacing.cardGap} md:grid-cols-2 lg:grid-cols-4`}
         >
-          {/* Total Sounds */
+          {/* Total Sounds */}
           <motion.div variants={item}>
             <Card className={`${designTokens.cards.default} h-full`}>
               <CardHeader className={designTokens.components.cardPadding}>
