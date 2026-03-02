@@ -129,8 +129,8 @@ export default function SettingsPage() {
       } = await supabase.auth.getUser();
       if (user) {
         const id =
-          user.identities?.find((i) => i.provider === "discord")
-            ?.identity_data?.sub || user.id;
+          user.identities?.find((i) => i.provider === "discord")?.identity_data
+            ?.sub || user.id;
         setDiscordId(id);
         setUser({
           name:
@@ -590,7 +590,8 @@ export default function SettingsPage() {
                     onClick={() => {
                       const next = resolvedTheme === "dark" ? "light" : "dark";
                       setTheme(next);
-                      if (discordId) localStorage.setItem(`theme_${discordId}`, next);
+                      if (discordId)
+                        localStorage.setItem(`theme_${discordId}`, next);
                     }}
                     disabled={!mounted}
                     aria-label="Toggle dark mode"
@@ -632,128 +633,132 @@ export default function SettingsPage() {
           </motion.div>
 
           {/* Danger Zone — owner only */}
-          {isOwner === true && <motion.div variants={item}>
-            <Card className="border-red-500/20 shadow-lg">
-              <CardHeader className="pb-6">
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.red}`}
-                  >
-                    <svg
-                      className={`${designTokens.icons.md} ${designTokens.iconColors.red}`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
+          {isOwner === true && (
+            <motion.div variants={item}>
+              <Card className="border-red-500/20 shadow-lg">
+                <CardHeader className="pb-6">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.red}`}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                      />
-                    </svg>
+                      <svg
+                        className={`${designTokens.icons.md} ${designTokens.iconColors.red}`}
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                        />
+                      </svg>
+                    </div>
+                    <div>
+                      <CardTitle
+                        className={`${designTokens.typography.h2} text-red-500`}
+                      >
+                        Danger Zone
+                      </CardTitle>
+                      <CardDescription
+                        className={`${designTokens.typography.smallMuted} mt-1`}
+                      >
+                        Irreversible actions — proceed with caution
+                      </CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle
-                      className={`${designTokens.typography.h2} text-red-500`}
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between flex-wrap gap-4 p-4 rounded-xl border border-red-500/20 bg-red-500/5">
+                    <div>
+                      <p
+                        className={
+                          designTokens.typography.body + " font-medium"
+                        }
+                      >
+                        Clear Library
+                      </p>
+                      <p className={designTokens.typography.smallMuted}>
+                        Permanently delete all sounds and playback history from
+                        the database and storage.
+                      </p>
+                    </div>
+                    <motion.div
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                     >
-                      Danger Zone
-                    </CardTitle>
-                    <CardDescription
-                      className={`${designTokens.typography.smallMuted} mt-1`}
-                    >
-                      Irreversible actions — proceed with caution
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between flex-wrap gap-4 p-4 rounded-xl border border-red-500/20 bg-red-500/5">
-                  <div>
-                    <p
-                      className={designTokens.typography.body + " font-medium"}
-                    >
-                      Clear Library
-                    </p>
-                    <p className={designTokens.typography.smallMuted}>
-                      Permanently delete all sounds and playback history from
-                      the database and storage.
-                    </p>
-                  </div>
-                  <motion.div
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                  >
-                    <Button
-                      variant="outline"
-                      disabled={clearing}
-                      onClick={() => setClearDialogOpen(true)}
-                      className="text-red-500 border-red-500/40 hover:bg-red-500/10 hover:border-red-500/60 shrink-0"
-                    >
-                      {clearDone ? (
-                        <span className="flex items-center gap-2">
-                          <svg
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M5 13l4 4L19 7"
-                            />
-                          </svg>
-                          Cleared!
-                        </span>
-                      ) : clearing ? (
-                        <span className="flex items-center gap-2">
-                          <svg
-                            className="animate-spin h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <circle
-                              className="opacity-25"
-                              cx="12"
-                              cy="12"
-                              r="10"
+                      <Button
+                        variant="outline"
+                        disabled={clearing}
+                        onClick={() => setClearDialogOpen(true)}
+                        className="text-red-500 border-red-500/40 hover:bg-red-500/10 hover:border-red-500/60 shrink-0"
+                      >
+                        {clearDone ? (
+                          <span className="flex items-center gap-2">
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
                               stroke="currentColor"
-                              strokeWidth="4"
-                            />
-                            <path
-                              className="opacity-75"
-                              fill="currentColor"
-                              d="M4 12a8 8 0 018-8v8H4z"
-                            />
-                          </svg>
-                          Clearing...
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-2">
-                          <svg
-                            className="h-4 w-4"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                          Clear DB
-                        </span>
-                      )}
-                    </Button>
-                  </motion.div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>}
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                            Cleared!
+                          </span>
+                        ) : clearing ? (
+                          <span className="flex items-center gap-2">
+                            <svg
+                              className="animate-spin h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                            >
+                              <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                              />
+                              <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8v8H4z"
+                              />
+                            </svg>
+                            Clearing...
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                            Clear DB
+                          </span>
+                        )}
+                      </Button>
+                    </motion.div>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
 
           {/* About */}
           <motion.div variants={item}>

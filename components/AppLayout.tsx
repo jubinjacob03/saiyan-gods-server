@@ -17,8 +17,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return;
       const id =
-        user.identities?.find((i) => i.provider === "discord")
-          ?.identity_data?.sub || user.id;
+        user.identities?.find((i) => i.provider === "discord")?.identity_data
+          ?.sub || user.id;
       const saved = localStorage.getItem(`theme_${id}`);
       if (saved) setTheme(saved);
     });
@@ -78,7 +78,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               height={34}
               className="rounded-full object-cover"
             />
-            <span className="font-bold text-base tracking-tight">Saiyan Gods</span>
+            <span className="font-bold text-base tracking-tight">
+              Saiyan Gods
+            </span>
           </div>
         </div>
 

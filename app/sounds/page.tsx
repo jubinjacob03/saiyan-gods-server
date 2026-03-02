@@ -385,7 +385,10 @@ function DroppableCategorySection({
           <div className="flex items-center gap-1">
             {onEditCategory && (
               <button
-                onClick={(e) => { e.stopPropagation(); onEditCategory(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEditCategory();
+                }}
                 className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                 title="Rename category"
               >
@@ -406,7 +409,10 @@ function DroppableCategorySection({
             )}
             {onDeleteCategory && (
               <button
-                onClick={(e) => { e.stopPropagation(); onDeleteCategory(); }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeleteCategory();
+                }}
                 className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                 title="Delete category"
               >
@@ -433,9 +439,16 @@ function DroppableCategorySection({
             animate={{ rotate: showAll ? 180 : 0 }}
             transition={{ duration: 0.2 }}
             className="w-3.5 h-3.5 text-muted-foreground/50 shrink-0"
-            fill="none" viewBox="0 0 24 24" stroke="currentColor"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7-7"
+            />
           </motion.svg>
         )}
       </motion.div>
