@@ -493,8 +493,14 @@ export default function PrivateVCPage() {
               onClick={fetchVCs}
               disabled={loadingVCs}
             >
-              <svg
-                className={`${designTokens.icons.sm} ${loadingVCs ? "animate-spin" : ""}`}
+              <motion.svg
+                animate={loadingVCs ? { rotate: 360 } : { rotate: 0 }}
+                transition={
+                  loadingVCs
+                    ? { repeat: Infinity, duration: 1, ease: "linear" }
+                    : {}
+                }
+                className={designTokens.icons.sm}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -505,7 +511,7 @@ export default function PrivateVCPage() {
                   strokeWidth={2}
                   d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
                 />
-              </svg>
+              </motion.svg>
               <span className="ml-1.5">Refresh</span>
             </Button>
             <Button onClick={() => setCreateModalOpen(true)}>
