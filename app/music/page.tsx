@@ -102,7 +102,6 @@ export default function MusicPage() {
     return saved !== null ? Number(saved) : 50;
   });
   const volumeSyncedRef = useRef(false);
-  const volumeGlobalLoadedRef = useRef(false);
   const [showQueue, setShowQueue] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
   // Optimistic queue: entries added instantly on click before bot confirms
@@ -123,6 +122,8 @@ export default function MusicPage() {
   const preActionUrlRef = useRef<string | null>(null);
   const currentSongUrlRef = useRef<string | null>(null);
   const prevQueueLengthRef = useRef(0);
+  // Stable ref so intervals always invoke the latest fetchStatus without circular deps
+  const fetchStatusRef = useRef<() => void>(() => {});
 
   const discordUserId: string | undefined =
     session?.user?.user_metadata?.provider_id;
@@ -154,18 +155,13 @@ export default function MusicPage() {
     if (userCh) setSelectedChannel(userCh.id);
   }, [discordUserId, channels]);
 
-  // Keep refs in sync
   useEffect(() => {
     currentSongUrlRef.current = status?.song?.url ?? null;
   }, [status]);
 
-  // Auto-show queue & clear optimistic entries when real queue arrives
   useEffect(() => {
     const len = status?.queueLength ?? 0;
-    if (len > 1 && len > prevQueueLengthRef.current) {
-      setShowQueue(true);
-    }
-    // Once bot confirms queue entries, remove matching optimistic ones
+    if (len > 1 && len > prevQueueLengthRef.current) setShowQueue(true);
     if (status?.queue && status.queue.length > 0) {
       const realNames = new Set(status.queue.map((q) => q.name));
       setOptimisticQueue((prev) => prev.filter((o) => !realNames.has(o.title)));
@@ -173,7 +169,6 @@ export default function MusicPage() {
     prevQueueLengthRef.current = len;
   }, [status?.queueLength, status?.queue]);
 
-  // Stop rapid polling helper
   const stopRapidPoll = useCallback(() => {
     if (rapidPollRef.current) {
       clearInterval(rapidPollRef.current);
@@ -188,7 +183,7 @@ export default function MusicPage() {
     preActionUrlRef.current = null;
   }, []);
 
-  // Start rapid polling until song URL changes (or timeout)
+  /** Kick off rapid polling (400 ms) until song URL changes, auto-aborts after 15 s. */
   const startTransition = useCallback(
     (prevUrl: string | null) => {
       preActionUrlRef.current = prevUrl;
@@ -196,13 +191,12 @@ export default function MusicPage() {
       setTransitioning(true);
       if (rapidPollRef.current) clearInterval(rapidPollRef.current);
       if (rapidTimeoutRef.current) clearTimeout(rapidTimeoutRef.current);
-      // Auto-clear after 15 s in case bot never changes
+      rapidPollRef.current = setInterval(() => fetchStatusRef.current(), 400);
       rapidTimeoutRef.current = setTimeout(stopRapidPoll, 15_000);
     },
     [stopRapidPoll],
   );
 
-  // ── Load global volume from DB on mount (overrides localStorage cache)
   useEffect(() => {
     fetch("/api/bot/music/config")
       .then((r) => r.json())
@@ -211,46 +205,42 @@ export default function MusicPage() {
           const globalVol = Math.round(v);
           setVolume(globalVol);
           localStorage.setItem("music_volume", String(globalVol));
-          // If bot is already reporting a different volume, push ours
           musicVolume(globalVol).catch(() => {});
         }
       })
-      .catch(() => {})
-      .finally(() => {
-        volumeGlobalLoadedRef.current = true;
-      });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+      .catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Status polling (2 s)
+  // ── Status polling (1.5 s baseline; rapid poll takes over during transitions)
   const fetchStatus = useCallback(async () => {
     try {
       const s = await musicStatus();
-      // Detect song change during transition
-      if (transitioningRef.current) {
-        const urlChanged = s.song?.url !== preActionUrlRef.current;
-        if (urlChanged) stopRapidPoll();
+      if (transitioningRef.current && s.song?.url !== preActionUrlRef.current) {
+        stopRapidPoll();
       }
       setStatus(s);
       if (!volumeSyncedRef.current) {
-        // First fetch: push our saved preference to the bot rather than taking bot's value
         volumeSyncedRef.current = true;
         const saved = (() => {
           const v = localStorage.getItem("music_volume");
           return v !== null ? Number(v) : 50;
         })();
-        if (s.volume !== undefined && s.volume !== saved) {
+        if (s.volume !== undefined && s.volume !== saved)
           musicVolume(saved).catch(() => {});
-        }
         setVolume(saved);
       }
-      // After first sync, never overwrite user-set volume from bot polls
     } catch {}
   }, [stopRapidPoll]);
 
+  // Keep fetchStatusRef current so interval callbacks always use the latest closure
+  useEffect(() => {
+    fetchStatusRef.current = fetchStatus;
+  }, [fetchStatus]);
+
   useEffect(() => {
     fetchStatus();
-    pollRef.current = setInterval(fetchStatus, 2000);
+    pollRef.current = setInterval(fetchStatus, 1500);
     return () => {
       if (pollRef.current) clearInterval(pollRef.current);
       if (rapidPollRef.current) clearInterval(rapidPollRef.current);
@@ -258,10 +248,9 @@ export default function MusicPage() {
     };
   }, [fetchStatus]);
 
-  // ── Search debounce
   useEffect(() => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
-    searchDebounce.current = setTimeout(() => setDebouncedQuery(query), 400);
+    searchDebounce.current = setTimeout(() => setDebouncedQuery(query), 350);
   }, [query]);
 
   // ── YouTube feed
@@ -297,9 +286,7 @@ export default function MusicPage() {
   const handlePlay = async (video: Video) => {
     if (!selectedChannel) return;
     setLoadingPlay(video.id);
-    // Optimistically add to queue immediately for instant feedback
-    const hasCurrent = !!currentSongUrlRef.current;
-    if (hasCurrent) {
+    if (currentSongUrlRef.current) {
       setOptimisticQueue((prev) => [
         ...prev,
         {
@@ -321,9 +308,7 @@ export default function MusicPage() {
         session?.user?.user_metadata?.full_name ?? "Web Player",
       );
       startTransition(prevUrl);
-      rapidPollRef.current = setInterval(fetchStatus, 600);
     } catch {
-      // Revert optimistic entry on error
       setOptimisticQueue((prev) => prev.filter((o) => o.id !== video.id));
     }
     setLoadingPlay(null);
@@ -339,12 +324,9 @@ export default function MusicPage() {
   }, [multiPoll]);
 
   const handleSkip = useCallback(() => {
-    const prevUrl = currentSongUrlRef.current;
-    startTransition(prevUrl);
+    startTransition(currentSongUrlRef.current);
     musicSkip().catch(() => {});
-    // Rapid poll every 600 ms until song changes
-    rapidPollRef.current = setInterval(fetchStatus, 600);
-  }, [startTransition, fetchStatus]);
+  }, [startTransition]);
 
   const handleStop = useCallback(() => {
     setStatus(null);
@@ -353,7 +335,7 @@ export default function MusicPage() {
 
   const handleShuffle = useCallback(() => {
     musicShuffle().catch(() => {});
-    multiPoll([500, 1400]);
+    multiPoll([400, 1200]);
   }, [multiPoll]);
 
   const handleLoop = useCallback(() => {
@@ -361,7 +343,7 @@ export default function MusicPage() {
       prev ? { ...prev, repeatMode: (prev.repeatMode + 1) % 3 } : prev,
     );
     musicLoop().catch(() => {});
-    multiPoll([300, 1000]);
+    multiPoll([300, 900]);
   }, [multiPoll]);
 
   const handleVolumeChange = useCallback(
@@ -371,7 +353,6 @@ export default function MusicPage() {
       localStorage.setItem("music_volume", String(v));
       setStatus((prev) => (prev ? { ...prev, volume: v } : prev));
       musicVolume(v).catch(() => {});
-      // Persist globally so all users get the same level
       fetch("/api/bot/music/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -632,14 +613,14 @@ export default function MusicPage() {
               className="fixed bottom-0 left-0 right-0 z-50 md:left-72"
             >
               <div className="mx-3 mb-3">
-                <div className="relative overflow-hidden rounded-2xl border border-white/[0.06] shadow-[0_-2px_60px_rgba(0,0,0,0.7)]">
+                <div className="relative overflow-hidden rounded-2xl border border-white/6 shadow-[0_-2px_60px_rgba(0,0,0,0.7)]">
                   {/* Ambient background */}
                   <div className="absolute inset-0 pointer-events-none">
                     {status?.song && (
                       <img
                         src={status.song.thumbnail}
                         alt=""
-                        className="w-full h-full object-cover scale-150 blur-[40px] opacity-20"
+                        className="w-full h-full object-cover scale-150 blur-2xl opacity-20"
                       />
                     )}
                     <div className="absolute inset-0 bg-zinc-950/90 backdrop-blur-md" />
@@ -696,15 +677,15 @@ export default function MusicPage() {
                               }}
                               className="overflow-hidden"
                             >
-                              <div className="px-3 pt-3 pb-2.5 border-b border-white/[0.05]">
+                              <div className="px-3 pt-3 pb-2.5 border-b border-white/5">
                                 {/* Now playing row */}
                                 <div className="flex items-center gap-2 mb-3">
-                                  <div className="flex gap-[3px] items-end h-4 shrink-0">
+                                  <div className="flex gap-0.75 items-end h-4 shrink-0">
                                     {isPlaying ? (
                                       [0, 200, 100].map((d, i) => (
                                         <motion.div
                                           key={i}
-                                          className="w-[3px] bg-indigo-400 rounded-full"
+                                          className="w-0.75 bg-indigo-400 rounded-full"
                                           animate={{
                                             height: ["4px", "14px", "4px"],
                                           }}
@@ -716,7 +697,7 @@ export default function MusicPage() {
                                         />
                                       ))
                                     ) : (
-                                      <div className="w-[3px] h-[10px] bg-white/30 rounded-full" />
+                                      <div className="w-0.75 h-2.5 bg-white/30 rounded-full" />
                                     )}
                                   </div>
                                   <div className="flex-1 min-w-0">
@@ -755,7 +736,7 @@ export default function MusicPage() {
                                           key={entry.index}
                                           className="shrink-0 w-28 group"
                                         >
-                                          <div className="aspect-video rounded-lg overflow-hidden bg-white/5 ring-1 ring-white/[0.06]">
+                                          <div className="aspect-video rounded-lg overflow-hidden bg-white/5 ring-1 ring-white/6">
                                             <img
                                               src={entry.thumbnail}
                                               alt={entry.name}
@@ -962,7 +943,7 @@ export default function MusicPage() {
                               </svg>
                               {(status.queueLength > 1 ||
                                 optimisticQueue.length > 0) && (
-                                <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-[3px] rounded-full bg-indigo-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
+                                <span className="absolute -top-0.5 -right-0.5 min-w-3.5 h-3.5 px-0.75 rounded-full bg-indigo-500 text-white text-[9px] font-bold flex items-center justify-center leading-none">
                                   {status.queueLength -
                                     1 +
                                     optimisticQueue.length}
@@ -984,7 +965,7 @@ export default function MusicPage() {
                               </svg>
                             </button>
 
-                            <div className="hidden sm:flex items-center gap-1.5 ml-2 pl-2.5 border-l border-white/[0.08] text-white/35">
+                            <div className="hidden sm:flex items-center gap-1.5 ml-2 pl-2.5 border-l border-white/8 text-white/35">
                               <VolumeIcon vol={volume} />
                               <input
                                 type="range"

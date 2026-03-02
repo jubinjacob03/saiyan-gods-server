@@ -72,7 +72,7 @@ export default function Home() {
     mostPlayedCount: 0,
   };
 
-  // Paint cached stats instantly on mount — zero loading flicker on revisit
+  /** Returns cached stats from localStorage; used to hydrate instantly on revisit. */
   const getCachedStats = (): Stats => {
     try {
       const raw = localStorage.getItem(CACHE_KEY);
@@ -84,19 +84,15 @@ export default function Home() {
   };
 
   const [stats, setStats] = useState<Stats>(defaultStats);
-  // loading = true only when there's no data yet (cold first visit)
   const [loading, setLoading] = useState(true);
-  // refreshing = true during background re-fetches (spinner only, cards stay visible)
   const [refreshing, setRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  // track whether we've ever loaded data so loadStats needn't depend on [loading]
   const hasDataRef = useRef(false);
 
   // Rehydrate from cache before first render
   useEffect(() => {
     const cached = getCachedStats();
-    const hasCached = localStorage.getItem(CACHE_KEY) !== null;
-    if (hasCached) {
+    if (localStorage.getItem(CACHE_KEY) !== null) {
       setStats(cached);
       setLoading(false);
       hasDataRef.current = true;
@@ -105,13 +101,11 @@ export default function Home() {
   }, []);
 
   const loadStats = useCallback(async () => {
-    // If we already have data, refresh silently without blanking the cards
     if (hasDataRef.current) setRefreshing(true);
     else setLoading(true);
     try {
       const supabase = createClient();
 
-      // ── Supabase queries in parallel
       const [soundsRes, playsRes, categoriesRes, topSoundRes] =
         await Promise.all([
           supabase.from("sounds").select("*", { count: "exact", head: true }),
@@ -136,7 +130,6 @@ export default function Home() {
       const mostPlayedSound = topSoundRes.data?.name ?? null;
       const mostPlayedCount = topSoundRes.data?.play_count ?? 0;
 
-      // ── Bot status + private VC in parallel
       try {
         const [botStatus, privateVcRes] = await Promise.all([
           getBotStatus(),
@@ -180,15 +173,15 @@ export default function Home() {
       }
       setLastUpdated(new Date());
       hasDataRef.current = true;
-    } catch (error) {
-      console.error("Error loading stats:", error);
+    } catch (err) {
+      console.error("[Dashboard] loadStats failed:", err);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
-  // Persist fresh stats to localStorage after each successful fetch
+  // Persist fresh stats to localStorage after every successful fetch
   useEffect(() => {
     if (!loading && !refreshing && hasDataRef.current) {
       try {

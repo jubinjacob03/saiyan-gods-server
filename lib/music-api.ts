@@ -72,7 +72,7 @@ export function musicPlay(
   }).then((r) => r.json());
 }
 
-// ── Status (polled every 2 s) ─────────────────────────────────────────────────
+// ── Status ──────────────────────────────────────────────────────────────────
 
 export function musicStatus(): Promise<MusicStatus> {
   return fetch(`/api/bot/music/status?guildId=${GUILD_ID}`, {
@@ -80,7 +80,7 @@ export function musicStatus(): Promise<MusicStatus> {
   }).then((r) => r.json());
 }
 
-// ── Queue details ─────────────────────────────────────────────────────────────
+// ── Queue ───────────────────────────────────────────────────────────────────
 
 export function musicQueue(): Promise<{
   queue: QueueEntry[];

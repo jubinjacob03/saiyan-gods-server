@@ -9,23 +9,14 @@ export async function signInWithDiscord() {
       scopes: "identify email guilds",
     },
   });
-
-  if (error) {
-    console.error("Error signing in with Discord:", error);
-    throw error;
-  }
-
+  if (error) throw error;
   return data;
 }
 
 export async function signOut() {
   const supabase = createClient();
   const { error } = await supabase.auth.signOut();
-
-  if (error) {
-    console.error("Error signing out:", error);
-    throw error;
-  }
+  if (error) throw error;
 }
 
 export async function getUser() {
@@ -34,12 +25,7 @@ export async function getUser() {
     data: { user },
     error,
   } = await supabase.auth.getUser();
-
-  if (error) {
-    console.error("Error getting user:", error);
-    return null;
-  }
-
+  if (error) return null;
   return user;
 }
 
@@ -49,11 +35,6 @@ export async function getSession() {
     data: { session },
     error,
   } = await supabase.auth.getSession();
-
-  if (error) {
-    console.error("Error getting session:", error);
-    return null;
-  }
-
+  if (error) return null;
   return session;
 }
