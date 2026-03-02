@@ -1047,7 +1047,7 @@ export default function SoundsPage() {
       const { error } = await supabase
         .from("sounds")
         .update({ category_id: targetCatId })
-        .eq("category_id", sourceCatId);
+        [sourceCatId === null ? "is" : "eq"]("category_id", sourceCatId);
 
       if (error) throw error;
 
