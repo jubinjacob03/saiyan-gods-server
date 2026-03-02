@@ -96,7 +96,13 @@ export default function MusicPage() {
   const [videoError, setVideoError] = useState<string | null>(null);
   const [loadingPlay, setLoadingPlay] = useState<string | null>(null);
   const [status, setStatus] = useState<MusicStatus | null>(null);
-  const [volume, setVolume] = useState(50);
+  const [volume, setVolume] = useState(() => {
+    if (typeof window === "undefined") return 50;
+    const saved = localStorage.getItem("music_volume");
+    return saved !== null ? Number(saved) : 50;
+  });
+  const volumeSyncedRef = useRef(false);
+  const volumeGlobalLoadedRef = useRef(false);
   const [showQueue, setShowQueue] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
   // Optimistic queue: entries added instantly on click before bot confirms
@@ -196,6 +202,26 @@ export default function MusicPage() {
     [stopRapidPoll],
   );
 
+  // ── Load global volume from DB on mount (overrides localStorage cache)
+  useEffect(() => {
+    fetch("/api/bot/music/config")
+      .then((r) => r.json())
+      .then(({ volume: v }) => {
+        if (typeof v === "number") {
+          const globalVol = Math.round(v);
+          setVolume(globalVol);
+          localStorage.setItem("music_volume", String(globalVol));
+          // If bot is already reporting a different volume, push ours
+          musicVolume(globalVol).catch(() => {});
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        volumeGlobalLoadedRef.current = true;
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // ── Status polling (2 s)
   const fetchStatus = useCallback(async () => {
     try {
@@ -206,7 +232,19 @@ export default function MusicPage() {
         if (urlChanged) stopRapidPoll();
       }
       setStatus(s);
-      if (s.volume !== undefined) setVolume(s.volume);
+      if (!volumeSyncedRef.current) {
+        // First fetch: push our saved preference to the bot rather than taking bot's value
+        volumeSyncedRef.current = true;
+        const saved = (() => {
+          const v = localStorage.getItem("music_volume");
+          return v !== null ? Number(v) : 50;
+        })();
+        if (s.volume !== undefined && s.volume !== saved) {
+          musicVolume(saved).catch(() => {});
+        }
+        setVolume(saved);
+      }
+      // After first sync, never overwrite user-set volume from bot polls
     } catch {}
   }, [stopRapidPoll]);
 
@@ -330,8 +368,15 @@ export default function MusicPage() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const v = Number(e.target.value);
       setVolume(v);
+      localStorage.setItem("music_volume", String(v));
       setStatus((prev) => (prev ? { ...prev, volume: v } : prev));
       musicVolume(v).catch(() => {});
+      // Persist globally so all users get the same level
+      fetch("/api/bot/music/config", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ volume: v }),
+      }).catch(() => {});
     },
     [],
   );
