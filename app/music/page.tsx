@@ -16,6 +16,9 @@ import {
 } from "@/lib/music-api";
 import { motion, AnimatePresence } from "framer-motion";
 import type { Session } from "@supabase/supabase-js";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface Video {
   id: string;
@@ -33,7 +36,38 @@ interface VoiceChannel {
   memberIds?: string[];
 }
 
+interface Playlist {
+  id: string;
+  name: string;
+  created_by: string;
+  is_locked: boolean;
+  position: number;
+  created_at: string;
+  updated_at: string;
+  song_count: number;
+}
+
+interface PlaylistSong {
+  id: string;
+  playlist_id: string;
+  youtube_url: string;
+  song_title: string;
+  song_channel: string;
+  song_thumbnail: string;
+  song_duration: string;
+  position: number;
+  added_by: string;
+  created_at: string;
+}
+
+interface ContextMenu {
+  video: Video;
+  x: number;
+  y: number;
+}
+
 const GUILD_ID = process.env.NEXT_PUBLIC_DISCORD_GUILD_ID!;
+const OWNER_ROLE_ID = "1473075468088377352";
 
 function VolumeIcon({ vol }: { vol: number }) {
   if (vol === 0)
@@ -104,7 +138,6 @@ export default function MusicPage() {
   const volumeSyncedRef = useRef(false);
   const [showQueue, setShowQueue] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
-  // Optimistic queue: entries added instantly on click before bot confirms
   const [optimisticQueue, setOptimisticQueue] = useState<
     {
       id: string;
@@ -114,6 +147,21 @@ export default function MusicPage() {
       duration: string;
     }[]
   >([]);
+  
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [playlistPanelOpen, setPlaylistPanelOpen] = useState(false);
+  const [newPlaylistName, setNewPlaylistName] = useState("");
+  const [savingPlaylist, setSavingPlaylist] = useState(false);
+  const [editingPlaylist, setEditingPlaylist] = useState<Playlist | null>(null);
+  const [editPlaylistName, setEditPlaylistName] = useState("");
+  const [deletePlaylistTarget, setDeletePlaylistTarget] = useState<Playlist | null>(null);
+  const [deletePlaylistDialogOpen, setDeletePlaylistDialogOpen] = useState(false);
+  const [selectedPlaylistForView, setSelectedPlaylistForView] = useState<Playlist | null>(null);
+  const [playlistSongs, setPlaylistSongs] = useState<PlaylistSong[]>([]);
+  const [loadingPlaylistSongs, setLoadingPlaylistSongs] = useState(false);
+  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
+  const [addingToPlaylist, setAddingToPlaylist] = useState(false);
+  
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rapidPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rapidTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -122,18 +170,15 @@ export default function MusicPage() {
   const preActionUrlRef = useRef<string | null>(null);
   const currentSongUrlRef = useRef<string | null>(null);
   const prevQueueLengthRef = useRef(0);
-  // Stable ref so intervals always invoke the latest fetchStatus without circular deps
   const fetchStatusRef = useRef<() => void>(() => {});
 
   const discordUserId: string | undefined =
     session?.user?.user_metadata?.provider_id;
 
-  // ── Session
   useEffect(() => {
     getSession().then(setSession);
   }, []);
 
-  // ── Load voice channels
   useEffect(() => {
     if (!GUILD_ID) return;
     fetch("/api/bot/channels")
@@ -141,14 +186,12 @@ export default function MusicPage() {
       .then((d) => {
         const vcs: VoiceChannel[] = d?.data ?? [];
         setChannels(vcs);
-        // Default to lobby, fallback to first
         const lobby = vcs.find((c) => c.name.toLowerCase().includes("lobby"));
         setSelectedChannel(lobby?.id ?? vcs[0]?.id ?? "");
       })
       .catch(() => {});
   }, []);
 
-  // ── Auto-select user's current VC
   useEffect(() => {
     if (!discordUserId || channels.length === 0) return;
     const userCh = channels.find((c) => c.memberIds?.includes(discordUserId));
@@ -212,7 +255,6 @@ export default function MusicPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Status polling (1.5 s baseline; rapid poll takes over during transitions)
   const fetchStatus = useCallback(async () => {
     try {
       const s = await musicStatus();
@@ -233,7 +275,6 @@ export default function MusicPage() {
     } catch {}
   }, [stopRapidPoll]);
 
-  // Keep fetchStatusRef current so interval callbacks always use the latest closure
   useEffect(() => {
     fetchStatusRef.current = fetchStatus;
   }, [fetchStatus]);
@@ -253,7 +294,6 @@ export default function MusicPage() {
     searchDebounce.current = setTimeout(() => setDebouncedQuery(query), 350);
   }, [query]);
 
-  // ── YouTube feed
   useEffect(() => {
     setLoadingVideos(true);
     setVideoError(null);
@@ -275,7 +315,221 @@ export default function MusicPage() {
       .finally(() => setLoadingVideos(false));
   }, [debouncedQuery]);
 
-  // Helper: fetch status multiple times on a schedule
+  useEffect(() => {
+    fetchPlaylists();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = () => setContextMenu(null);
+    if (contextMenu) {
+      document.addEventListener("click", handleClickOutside);
+      return () => document.removeEventListener("click", handleClickOutside);
+    }
+  }, [contextMenu]);
+
+  const fetchPlaylists = async () => {
+    try {
+      const res = await fetch("/api/playlists");
+      const data = await res.json();
+      setPlaylists(data.playlists || []);
+    } catch (error) {
+      console.error("Failed to fetch playlists:", error);
+    }
+  };
+
+  const handleCreatePlaylist = async () => {
+    const name = newPlaylistName.trim();
+    if (!name) return;
+    setSavingPlaylist(true);
+    try {
+      const res = await fetch("/api/playlists", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (data.playlist) {
+        setPlaylists((prev) => [...prev, { ...data.playlist, song_count: 0 }]);
+        setNewPlaylistName("");
+      }
+    } catch (error) {
+      console.error("Failed to create playlist:", error);
+    } finally {
+      setSavingPlaylist(false);
+    }
+  };
+
+  const handleRenamePlaylist = async () => {
+    if (!editingPlaylist) return;
+    const name = editPlaylistName.trim();
+    if (!name) return;
+    setSavingPlaylist(true);
+    try {
+      const res = await fetch(`/api/playlists/${editingPlaylist.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      const data = await res.json();
+      if (data.playlist) {
+        setPlaylists((prev) =>
+          prev.map((p) => (p.id === editingPlaylist.id ? { ...p, name } : p))
+        );
+        setEditingPlaylist(null);
+        setEditPlaylistName("");
+      }
+    } catch (error) {
+      console.error("Failed to rename playlist:", error);
+    } finally {
+      setSavingPlaylist(false);
+    }
+  };
+
+  const handleTogglePlaylistLock = async (playlist: Playlist) => {
+    if (playlist.created_by !== discordUserId) return;
+    try {
+      const res = await fetch(`/api/playlists/${playlist.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ is_locked: !playlist.is_locked }),
+      });
+      const data = await res.json();
+      if (data.playlist) {
+        setPlaylists((prev) =>
+          prev.map((p) =>
+            p.id === playlist.id ? { ...p, is_locked: !playlist.is_locked } : p
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Failed to toggle lock:", error);
+    }
+  };
+
+  const confirmDeletePlaylist = async () => {
+    if (!deletePlaylistTarget) return;
+    try {
+      const res = await fetch(`/api/playlists/${deletePlaylistTarget.id}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setPlaylists((prev) => prev.filter((p) => p.id !== deletePlaylistTarget.id));
+        setDeletePlaylistTarget(null);
+      }
+    } catch (error) {
+      console.error("Failed to delete playlist:", error);
+    }
+  };
+
+  const handleViewPlaylist = async (playlist: Playlist) => {
+    setSelectedPlaylistForView(playlist);
+    setLoadingPlaylistSongs(true);
+    try {
+      const res = await fetch(`/api/playlists/${playlist.id}`);
+      const data = await res.json();
+      setPlaylistSongs(data.songs || []);
+    } catch (error) {
+      console.error("Failed to fetch playlist songs:", error);
+      setPlaylistSongs([]);
+    } finally {
+      setLoadingPlaylistSongs(false);
+    }
+  };
+
+  const handleAddToPlaylist = async (playlistId: string, video: Video) => {
+    setAddingToPlaylist(true);
+    try {
+      const res = await fetch(`/api/playlists/${playlistId}/songs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          youtube_url: video.url,
+          song_title: video.title,
+          song_channel: video.channel,
+          song_thumbnail: video.thumbnail,
+          song_duration: video.duration,
+        }),
+      });
+      if (res.ok) {
+        setPlaylists((prev) =>
+          prev.map((p) =>
+            p.id === playlistId ? { ...p, song_count: p.song_count + 1 } : p
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Failed to add to playlist:", error);
+    } finally {
+      setAddingToPlaylist(false);
+      setContextMenu(null);
+    }
+  };
+
+  const handleRemoveFromPlaylist = async (songId: string) => {
+    if (!selectedPlaylistForView) return;
+    try {
+      const res = await fetch(
+        `/api/playlists/${selectedPlaylistForView.id}/songs/${songId}`,
+        { method: "DELETE" }
+      );
+      if (res.ok) {
+        setPlaylistSongs((prev) => prev.filter((s) => s.id !== songId));
+        setPlaylists((prev) =>
+          prev.map((p) =>
+            p.id === selectedPlaylistForView.id
+              ? { ...p, song_count: Math.max(0, p.song_count - 1) }
+              : p
+          )
+        );
+      }
+    } catch (error) {
+      console.error("Failed to remove from playlist:", error);
+    }
+  };
+
+  const handlePlayPlaylist = async (playlist: Playlist) => {
+    if (!selectedChannel) return;
+    try {
+      const res = await fetch(`/api/playlists/${playlist.id}`);
+      const data = await res.json();
+      const songs: PlaylistSong[] = data.songs || [];
+      
+      for (const song of songs) {
+        await musicPlay(
+          selectedChannel,
+          song.youtube_url,
+          discordUserId ?? "web",
+          session?.user?.user_metadata?.full_name ?? "Web Player"
+        );
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+      
+      multiPoll([500, 1500]);
+    } catch (error) {
+      console.error("Failed to play playlist:", error);
+    }
+  };
+
+  const handleVideoContextMenu = (e: React.MouseEvent, video: Video) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      video,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
+
+  const handleVideoLongPress = (video: Video, e: TouchEvent) => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    setContextMenu({
+      video,
+      x: touch.clientX,
+      y: touch.clientY,
+    });
+  };
+
   const multiPoll = useCallback(
     (delays: number[]) => {
       delays.forEach((ms) => setTimeout(fetchStatus, ms));
@@ -314,7 +568,6 @@ export default function MusicPage() {
     setLoadingPlay(null);
   };
 
-  // ── Optimistic + fire-and-forget control handlers ─────────────────────────
   const handleToggle = useCallback(() => {
     setStatus((prev) =>
       prev ? { ...prev, paused: !prev.paused, playing: prev.paused } : prev,
@@ -381,40 +634,65 @@ export default function MusicPage() {
               )}
             </div>
 
-            {/* Voice channel selector */}
-            <div className="flex items-center gap-2">
-              <svg
-                className="h-4 w-4 text-muted-foreground shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
+            <div className="flex items-center gap-2 flex-wrap">
+              {/* Manage Playlists Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPlaylistPanelOpen(true)}
+                className="gap-2"
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M15.536 8.464a5 5 0 010 7.072M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
-                />
-              </svg>
-              <select
-                value={selectedChannel}
-                onChange={(e) => setSelectedChannel(e.target.value)}
-                className="text-sm bg-muted border border-border/50 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40"
-              >
-                {channels.length === 0 && <option value="">Loading...</option>}
-                {channels.map((c) => {
-                  const isUserHere = discordUserId
-                    ? c.memberIds?.includes(discordUserId)
-                    : false;
-                  return (
-                    <option key={c.id} value={c.id}>
-                      {isUserHere ? "● " : ""}
-                      {c.name}
-                      {c.memberCount > 0 ? ` (${c.memberCount})` : ""}
-                    </option>
-                  );
-                })}
-              </select>
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                  />
+                </svg>
+                Manage Playlists
+              </Button>
+
+              {/* Voice channel selector */}
+              <div className="flex items-center gap-2">
+                <svg
+                  className="h-4 w-4 text-muted-foreground shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M15.536 8.464a5 5 0 010 7.072M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"
+                  />
+                </svg>
+                <select
+                  value={selectedChannel}
+                  onChange={(e) => setSelectedChannel(e.target.value)}
+                  className="text-sm bg-muted border border-border/50 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  {channels.length === 0 && <option value="">Loading...</option>}
+                  {channels.map((c) => {
+                    const isUserHere = discordUserId
+                      ? c.memberIds?.includes(discordUserId)
+                      : false;
+                    return (
+                      <option key={c.id} value={c.id}>
+                        {isUserHere ? "● " : ""}
+                        {c.name}
+                        {c.memberCount > 0 ? ` (${c.memberCount})` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
             </div>
           </div>
 
@@ -518,6 +796,15 @@ export default function MusicPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
                   onClick={() => handlePlay(video)}
+                  onContextMenu={(e) => handleVideoContextMenu(e, video)}
+                  onTouchStart={(e) => {
+                    const longPressTimer = setTimeout(() => {
+                      handleVideoLongPress(video, e.nativeEvent);
+                    }, 500);
+                    const clearTimer = () => clearTimeout(longPressTimer);
+                    e.currentTarget.addEventListener("touchend", clearTimer, { once: true });
+                    e.currentTarget.addEventListener("touchmove", clearTimer, { once: true });
+                  }}
                   disabled={!selectedChannel || loadingPlay === video.id}
                   className={`group relative text-left rounded-xl overflow-hidden border transition-all duration-200 ${
                     isCurrentlyPlaying
@@ -992,6 +1279,360 @@ export default function MusicPage() {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Context Menu for Add to Playlist */}
+        {contextMenu && (
+          <div
+            className="fixed bg-card border border-border rounded-lg shadow-xl py-1 z-50 min-w-50"
+            style={{
+              left: `${contextMenu.x}px`,
+              top: `${contextMenu.y}px`,
+            }}
+          >
+            <div className="px-3 py-2 border-b border-border/50">
+              <p className="text-xs font-medium truncate">{contextMenu.video.title}</p>
+            </div>
+            <button
+              onClick={() => handlePlay(contextMenu.video)}
+              className="w-full px-3 py-2 text-left text-sm hover:bg-muted/50 flex items-center gap-2"
+            >
+              <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M8 5v14l11-7z" />
+              </svg>
+              Play Now
+            </button>
+            <div className="border-t border-border/50 my-1" />
+            <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium">
+              Add to Playlist
+            </div>
+            {playlists.length === 0 ? (
+              <div className="px-3 py-2 text-xs text-muted-foreground">
+                No playlists yet
+              </div>
+            ) : (
+              playlists.map((playlist) => {
+                const isLocked = playlist.is_locked && playlist.created_by !== discordUserId;
+                return (
+                  <button
+                    key={playlist.id}
+                    onClick={() => !isLocked && handleAddToPlaylist(playlist.id, contextMenu.video)}
+                    disabled={isLocked || addingToPlaylist}
+                    className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between ${
+                      isLocked
+                        ? "opacity-50 cursor-not-allowed"
+                        : "hover:bg-muted/50"
+                    }`}
+                  >
+                    <span className="truncate">{playlist.name}</span>
+                    {playlist.is_locked && (
+                      <svg className="h-3 w-3 shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                      </svg>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* Playlist Management Panel */}
+        <AnimatePresence>
+          {playlistPanelOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+              onClick={() => {
+                setPlaylistPanelOpen(false);
+                setEditingPlaylist(null);
+                setSelectedPlaylistForView(null);
+              }}
+            >
+              <motion.div
+                initial={{ scale: 0.95, y: 20 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.95, y: 20 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-card border border-border rounded-2xl shadow-2xl max-w-2xl w-full max-h-[80vh] overflow-hidden flex flex-col"
+              >
+                <div className="p-6 border-b border-border/50">
+                  <div className="flex items-center justify-between">
+                    <h2 className="text-xl font-bold">Manage Playlists</h2>
+                    <button
+                      onClick={() => {
+                        setPlaylistPanelOpen(false);
+                        setEditingPlaylist(null);
+                        setSelectedPlaylistForView(null);
+                      }}
+                      className="p-2 hover:bg-muted rounded-lg transition-colors"
+                    >
+                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                  
+                  {!selectedPlaylistForView && (
+                    <div className="mt-4 flex gap-2">
+                      <Input
+                        placeholder="New playlist name..."
+                        value={newPlaylistName}
+                        onChange={(e) => setNewPlaylistName(e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && handleCreatePlaylist()}
+                        className="flex-1"
+                      />
+                      <Button
+                        onClick={handleCreatePlaylist}
+                        disabled={!newPlaylistName.trim() || savingPlaylist}
+                      >
+                        {savingPlaylist ? "Creating..." : "Create"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 overflow-y-auto p-6">
+                  {selectedPlaylistForView ? (
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => setSelectedPlaylistForView(null)}
+                          className="p-2 hover:bg-muted rounded-lg"
+                        >
+                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          </svg>
+                        </button>
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold">{selectedPlaylistForView.name}</h3>
+                          <p className="text-sm text-muted-foreground">
+                            {playlistSongs.length} song(s)
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handlePlayPlaylist(selectedPlaylistForView)}
+                          disabled={playlistSongs.length === 0}
+                        >
+                          Play All
+                        </Button>
+                      </div>
+
+                      {loadingPlaylistSongs ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          Loading songs...
+                        </div>
+                      ) : playlistSongs.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          No songs in this playlist yet
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {playlistSongs.map((song, index) => (
+                            <div
+                              key={song.id}
+                              className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
+                            >
+                              <span className="text-xs text-muted-foreground w-6">{index + 1}</span>
+                              <img
+                                src={song.song_thumbnail}
+                                alt={song.song_title}
+                                className="w-12 h-12 rounded object-cover"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{song.song_title}</p>
+                                <p className="text-xs text-muted-foreground truncate">
+                                  {song.song_channel} • {song.song_duration}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground/60">
+                                  Added by {song.added_by}
+                                </p>
+                              </div>
+                              {(!selectedPlaylistForView.is_locked ||
+                                selectedPlaylistForView.created_by === discordUserId ||
+                                song.added_by === discordUserId) && (
+                                <button
+                                  onClick={() => handleRemoveFromPlaylist(song.id)}
+                                  className="p-2 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors"
+                                >
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ) : playlists.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground">
+                      <svg
+                        className="h-16 w-16 mx-auto mb-4 opacity-50"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"
+                        />
+                      </svg>
+                      <p className="text-sm">No playlists yet</p>
+                      <p className="text-xs mt-1">Create one to get started!</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {playlists.map((playlist) => {
+                        const isOwner = session?.user?.user_metadata?.roles?.includes(OWNER_ROLE_ID);
+                        const isCreator = playlist.created_by === discordUserId;
+                        
+                        if (editingPlaylist?.id === playlist.id) {
+                          return (
+                            <div key={playlist.id} className="flex items-center gap-2 p-4 bg-muted/30 rounded-lg">
+                              <Input
+                                value={editPlaylistName}
+                                onChange={(e) => setEditPlaylistName(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") handleRenamePlaylist();
+                                  if (e.key === "Escape") {
+                                    setEditingPlaylist(null);
+                                    setEditPlaylistName("");
+                                  }
+                                }}
+                                className="flex-1"
+                                autoFocus
+                              />
+                              <Button size="sm" onClick={handleRenamePlaylist} disabled={savingPlaylist}>
+                                Save
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setEditingPlaylist(null);
+                                  setEditPlaylistName("");
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                            </div>
+                          );
+                        }
+
+                        return (
+                          <div
+                            key={playlist.id}
+                            className="flex items-center gap-3 p-4 bg-muted/30 hover:bg-muted/50 rounded-lg transition-colors group"
+                          >
+                            <button
+                              onClick={() => handleViewPlaylist(playlist)}
+                              className="flex-1 flex items-center gap-3 min-w-0 text-left"
+                            >
+                              <div className="p-2 bg-primary/10 rounded-lg">
+                                <svg className="h-5 w-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                                  <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
+                                </svg>
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <p className="font-medium truncate">{playlist.name}</p>
+                                  {playlist.is_locked && (
+                                    <svg className="h-3.5 w-3.5 text-muted-foreground shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                  {playlist.song_count} song(s) • Created by {playlist.created_by}
+                                </p>
+                              </div>
+                            </button>
+                            
+                            <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {isCreator && (
+                                <>
+                                  <button
+                                    onClick={() => handleTogglePlaylistLock(playlist)}
+                                    className="p-2 hover:bg-muted rounded-lg transition-colors"
+                                    title={playlist.is_locked ? "Unlock" : "Lock"}
+                                  >
+                                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                      {playlist.is_locked ? (
+                                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                      ) : (
+                                        <path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2H7V7a3 3 0 015.905-.75 1 1 0 001.937-.5A5.002 5.002 0 0010 2z" />
+                                      )}
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setEditingPlaylist(playlist);
+                                      setEditPlaylistName(playlist.name);
+                                    }}
+                                    className="p-2 hover:bg-muted rounded-lg transition-colors"
+                                    title="Rename"
+                                  >
+                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    </svg>
+                                  </button>
+                                </>
+                              )}
+                              {(isCreator || isOwner) && (
+                                <button
+                                  onClick={() => {
+                                    setDeletePlaylistTarget(playlist);
+                                    setDeletePlaylistDialogOpen(true);
+                                  }}
+                                  className="p-2 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors"
+                                  title="Delete"
+                                >
+                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      strokeWidth={2}
+                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    />
+                                  </svg>
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Delete Playlist Confirmation */}
+        <ConfirmDialog
+          isOpen={deletePlaylistDialogOpen}
+          onClose={() => {
+            setDeletePlaylistDialogOpen(false);
+            setDeletePlaylistTarget(null);
+          }}
+          onConfirm={confirmDeletePlaylist}
+          title="Delete Playlist"
+          description={`Are you sure you want to delete "${deletePlaylistTarget?.name}"? This will remove all songs from this playlist.`}
+          confirmText="Delete"
+          variant="danger"
+        />
       </div>
     </AppLayout>
   );
