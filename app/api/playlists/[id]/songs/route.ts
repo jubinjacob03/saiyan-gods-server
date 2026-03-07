@@ -47,6 +47,20 @@ export async function POST(
       );
     }
 
+    const { data: existingSong } = await supabase
+      .from("music_playlist_songs")
+      .select("id")
+      .eq("playlist_id", playlistId)
+      .eq("youtube_url", youtube_url)
+      .single();
+
+    if (existingSong) {
+      return NextResponse.json(
+        { error: "Song already exists in this playlist" },
+        { status: 409 }
+      );
+    }
+
     const { data: maxPos } = await supabase
       .from("music_playlist_songs")
       .select("position")

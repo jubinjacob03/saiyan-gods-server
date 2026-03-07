@@ -40,6 +40,7 @@ interface Playlist {
   id: string;
   name: string;
   created_by: string;
+  creator_name?: string;
   is_locked: boolean;
   position: number;
   created_at: string;
@@ -57,6 +58,7 @@ interface PlaylistSong {
   song_duration: string;
   position: number;
   added_by: string;
+  adder_name?: string;
   created_at: string;
 }
 
@@ -149,6 +151,7 @@ export default function MusicPage() {
   >([]);
   
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [memberNames, setMemberNames] = useState<Record<string, string>>({});
   const [playlistPanelOpen, setPlaylistPanelOpen] = useState(false);
   const [newPlaylistName, setNewPlaylistName] = useState("");
   const [savingPlaylist, setSavingPlaylist] = useState(false);
@@ -161,6 +164,10 @@ export default function MusicPage() {
   const [loadingPlaylistSongs, setLoadingPlaylistSongs] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [addingToPlaylist, setAddingToPlaylist] = useState(false);
+  const [toast, setToast] = useState<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
   
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rapidPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -174,6 +181,11 @@ export default function MusicPage() {
 
   const discordUserId: string | undefined =
     session?.user?.user_metadata?.provider_id;
+
+  const showToast = (msg: string, type: "success" | "error" = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   useEffect(() => {
     getSession().then(setSession);
@@ -324,15 +336,43 @@ export default function MusicPage() {
       .finally(() => setLoadingVideos(false));
   }, [debouncedQuery]);
 
+  const fetchMemberName = useCallback(async (userId: string) => {
+    if (memberNames[userId]) return memberNames[userId];
+    try {
+      const res = await fetch(`/api/bot/members?userId=${userId}`);
+      const data = await res.json();
+      const displayName = data.data?.displayName || data.data?.username || userId;
+      setMemberNames(prev => ({ ...prev, [userId]: displayName }));
+      return displayName;
+    } catch {
+      return userId;
+    }
+  }, [memberNames]);
+
   const fetchPlaylists = useCallback(async () => {
     try {
       const res = await fetch("/api/playlists");
       const data = await res.json();
-      setPlaylists(data.playlists || []);
+      const playlistsData = data.playlists || [];
+      
+      const uniqueUserIds = [...new Set(playlistsData.map((p: Playlist) => p.created_by))];
+      const namePromises = uniqueUserIds.map(async (userId) => {
+        const name = await fetchMemberName(userId as string);
+        return [userId, name];
+      });
+      const nameEntries = await Promise.all(namePromises);
+      const nameMap = Object.fromEntries(nameEntries);
+      
+      const enrichedPlaylists = playlistsData.map((p: Playlist) => ({
+        ...p,
+        creator_name: nameMap[p.created_by] || p.created_by
+      }));
+      
+      setPlaylists(enrichedPlaylists);
     } catch (error) {
       console.error("Failed to fetch playlists:", error);
     }
-  }, []);
+  }, [fetchMemberName]);
 
   useEffect(() => {
     fetchPlaylists();
@@ -438,7 +478,22 @@ export default function MusicPage() {
     try {
       const res = await fetch(`/api/playlists/${playlist.id}`);
       const data = await res.json();
-      setPlaylistSongs(data.songs || []);
+      const songsData = data.songs || [];
+      
+      const uniqueUserIds = [...new Set(songsData.map((s: PlaylistSong) => s.added_by))];
+      const namePromises = uniqueUserIds.map(async (userId) => {
+        const name = await fetchMemberName(userId as string);
+        return [userId, name];
+      });
+      const nameEntries = await Promise.all(namePromises);
+      const nameMap = Object.fromEntries(nameEntries);
+      
+      const enrichedSongs = songsData.map((s: PlaylistSong) => ({
+        ...s,
+        adder_name: nameMap[s.added_by] || s.added_by
+      }));
+      
+      setPlaylistSongs(enrichedSongs);
     } catch (error) {
       console.error("Failed to fetch playlist songs:", error);
       setPlaylistSongs([]);
@@ -461,15 +516,21 @@ export default function MusicPage() {
           song_duration: video.duration,
         }),
       });
+      const data = await res.json();
       if (res.ok) {
         setPlaylists((prev) =>
           prev.map((p) =>
             p.id === playlistId ? { ...p, song_count: p.song_count + 1 } : p
           )
         );
+        const playlistName = playlists.find(p => p.id === playlistId)?.name || "playlist";
+        showToast(`Added "${video.title}" to ${playlistName}!`);
+      } else {
+        showToast(data.error || "Failed to add song to playlist", "error");
       }
     } catch (error) {
       console.error("Failed to add to playlist:", error);
+      showToast("Failed to add song to playlist", "error");
     } finally {
       setAddingToPlaylist(false);
       setContextMenu(null);
@@ -631,6 +692,23 @@ export default function MusicPage() {
 
   return (
     <AppLayout>
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium ${
+              toast.type === "success"
+                ? "bg-green-500/90 text-white"
+                : "bg-red-500/90 text-white"
+            }`}
+          >
+            {toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex flex-col min-h-full pb-36">
         {/* Header */}
         <div className="flex flex-col gap-4 mb-6">
@@ -1459,7 +1537,7 @@ export default function MusicPage() {
                                   {song.song_channel} • {song.song_duration}
                                 </p>
                                 <p className="text-[10px] text-muted-foreground/60">
-                                  Added by {song.added_by}
+                                  Added by {song.adder_name || song.added_by}
                                 </p>
                               </div>
                               {(!selectedPlaylistForView.is_locked ||
@@ -1565,7 +1643,7 @@ export default function MusicPage() {
                                   )}
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                  {playlist.song_count} song(s) • Created by {playlist.created_by}
+                                  {playlist.song_count} song(s) • Created by {playlist.creator_name || playlist.created_by}
                                 </p>
                               </div>
                             </button>
