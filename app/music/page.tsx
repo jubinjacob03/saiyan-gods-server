@@ -149,7 +149,7 @@ export default function MusicPage() {
       duration: string;
     }[]
   >([]);
-  
+
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [memberNames, setMemberNames] = useState<Record<string, string>>({});
   const [playlistPanelOpen, setPlaylistPanelOpen] = useState(false);
@@ -157,9 +157,12 @@ export default function MusicPage() {
   const [savingPlaylist, setSavingPlaylist] = useState(false);
   const [editingPlaylist, setEditingPlaylist] = useState<Playlist | null>(null);
   const [editPlaylistName, setEditPlaylistName] = useState("");
-  const [deletePlaylistTarget, setDeletePlaylistTarget] = useState<Playlist | null>(null);
-  const [deletePlaylistDialogOpen, setDeletePlaylistDialogOpen] = useState(false);
-  const [selectedPlaylistForView, setSelectedPlaylistForView] = useState<Playlist | null>(null);
+  const [deletePlaylistTarget, setDeletePlaylistTarget] =
+    useState<Playlist | null>(null);
+  const [deletePlaylistDialogOpen, setDeletePlaylistDialogOpen] =
+    useState(false);
+  const [selectedPlaylistForView, setSelectedPlaylistForView] =
+    useState<Playlist | null>(null);
   const [playlistSongs, setPlaylistSongs] = useState<PlaylistSong[]>([]);
   const [loadingPlaylistSongs, setLoadingPlaylistSongs] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
@@ -168,7 +171,7 @@ export default function MusicPage() {
     msg: string;
     type: "success" | "error";
   } | null>(null);
-  
+
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rapidPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const rapidTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -336,38 +339,44 @@ export default function MusicPage() {
       .finally(() => setLoadingVideos(false));
   }, [debouncedQuery]);
 
-  const fetchMemberName = useCallback(async (userId: string) => {
-    if (memberNames[userId]) return memberNames[userId];
-    try {
-      const res = await fetch(`/api/bot/members?userId=${userId}`);
-      const data = await res.json();
-      const displayName = data.data?.displayName || data.data?.username || userId;
-      setMemberNames(prev => ({ ...prev, [userId]: displayName }));
-      return displayName;
-    } catch {
-      return userId;
-    }
-  }, [memberNames]);
+  const fetchMemberName = useCallback(
+    async (userId: string) => {
+      if (memberNames[userId]) return memberNames[userId];
+      try {
+        const res = await fetch(`/api/bot/members?userId=${userId}`);
+        const data = await res.json();
+        const displayName =
+          data.data?.displayName || data.data?.username || userId;
+        setMemberNames((prev) => ({ ...prev, [userId]: displayName }));
+        return displayName;
+      } catch {
+        return userId;
+      }
+    },
+    [memberNames],
+  );
 
   const fetchPlaylists = useCallback(async () => {
     try {
       const res = await fetch("/api/playlists");
       const data = await res.json();
       const playlistsData = data.playlists || [];
-      
-      const uniqueUserIds = [...new Set(playlistsData.map((p: Playlist) => p.created_by))];
+
+      const uniqueUserIds = [
+        ...new Set(playlistsData.map((p: Playlist) => p.created_by)),
+      ];
       const namePromises = uniqueUserIds.map(async (userId) => {
         const name = await fetchMemberName(userId as string);
         return [userId, name];
       });
       const nameEntries = await Promise.all(namePromises);
       const nameMap = Object.fromEntries(nameEntries);
-      
+
       const enrichedPlaylists = playlistsData.map((p: Playlist) => ({
         ...p,
-        creator_name: nameMap[p.created_by] || p.created_by
+        creator_name: nameMap[p.created_by] || p.created_by,
       }));
-      
+
       setPlaylists(enrichedPlaylists);
     } catch (error) {
       console.error("Failed to fetch playlists:", error);
@@ -390,7 +399,14 @@ export default function MusicPage() {
 
   const handleCreatePlaylist = async () => {
     const name = newPlaylistName.trim();
-    if (!name) return;
+    if (!name) {
+      showToast("Playlist name cannot be empty", "error");
+      return;
+    }
+    if (name.length > 50) {
+      showToast("Playlist name is too long (max 50 characters)", "error");
+      return;
+    }
     setSavingPlaylist(true);
     try {
       const res = await fetch("/api/playlists", {
@@ -399,12 +415,16 @@ export default function MusicPage() {
         body: JSON.stringify({ name }),
       });
       const data = await res.json();
-      if (data.playlist) {
+      if (res.ok && data.playlist) {
         setPlaylists((prev) => [...prev, { ...data.playlist, song_count: 0 }]);
         setNewPlaylistName("");
+        showToast(`Playlist "${name}" created!`, "success");
+      } else {
+        showToast(data.error || "Failed to create playlist", "error");
       }
     } catch (error) {
       console.error("Failed to create playlist:", error);
+      showToast("Failed to create playlist. Please try again.", "error");
     } finally {
       setSavingPlaylist(false);
     }
@@ -413,7 +433,19 @@ export default function MusicPage() {
   const handleRenamePlaylist = async () => {
     if (!editingPlaylist) return;
     const name = editPlaylistName.trim();
-    if (!name) return;
+    if (!name) {
+      showToast("Playlist name cannot be empty", "error");
+      return;
+    }
+    if (name.length > 50) {
+      showToast("Playlist name is too long (max 50 characters)", "error");
+      return;
+    }
+    if (name === editingPlaylist.name) {
+      setEditingPlaylist(null);
+      setEditPlaylistName("");
+      return;
+    }
     setSavingPlaylist(true);
     try {
       const res = await fetch(`/api/playlists/${editingPlaylist.id}`, {
@@ -422,22 +454,29 @@ export default function MusicPage() {
         body: JSON.stringify({ name }),
       });
       const data = await res.json();
-      if (data.playlist) {
+      if (res.ok && data.playlist) {
         setPlaylists((prev) =>
-          prev.map((p) => (p.id === editingPlaylist.id ? { ...p, name } : p))
+          prev.map((p) => (p.id === editingPlaylist.id ? { ...p, name } : p)),
         );
         setEditingPlaylist(null);
         setEditPlaylistName("");
+        showToast(`Playlist renamed to "${name}"!`, "success");
+      } else {
+        showToast(data.error || "Failed to rename playlist", "error");
       }
     } catch (error) {
       console.error("Failed to rename playlist:", error);
+      showToast("Failed to rename playlist. Please try again.", "error");
     } finally {
       setSavingPlaylist(false);
     }
   };
 
   const handleTogglePlaylistLock = async (playlist: Playlist) => {
-    if (playlist.created_by !== discordUserId) return;
+    if (playlist.created_by !== discordUserId) {
+      showToast("Only the creator can lock/unlock this playlist", "error");
+      return;
+    }
     try {
       const res = await fetch(`/api/playlists/${playlist.id}`, {
         method: "PUT",
@@ -445,15 +484,22 @@ export default function MusicPage() {
         body: JSON.stringify({ is_locked: !playlist.is_locked }),
       });
       const data = await res.json();
-      if (data.playlist) {
+      if (res.ok && data.playlist) {
         setPlaylists((prev) =>
           prev.map((p) =>
-            p.id === playlist.id ? { ...p, is_locked: !playlist.is_locked } : p
-          )
+            p.id === playlist.id ? { ...p, is_locked: !playlist.is_locked } : p,
+          ),
         );
+        showToast(
+          `Playlist ${!playlist.is_locked ? "locked" : "unlocked"}!`,
+          "success",
+        );
+      } else {
+        showToast(data.error || "Failed to update playlist", "error");
       }
     } catch (error) {
       console.error("Failed to toggle lock:", error);
+      showToast("Failed to update playlist. Please try again.", "error");
     }
   };
 
@@ -464,11 +510,20 @@ export default function MusicPage() {
         method: "DELETE",
       });
       if (res.ok) {
-        setPlaylists((prev) => prev.filter((p) => p.id !== deletePlaylistTarget.id));
-        setDeletePlaylistTarget(null);
+        showToast("Playlist deleted successfully", "success");
+        setPlaylists((prev) =>
+          prev.filter((p) => p.id !== deletePlaylistTarget.id),
+        );
+      } else {
+        const data = await res.json();
+        showToast(data.error || "Failed to delete playlist", "error");
       }
     } catch (error) {
       console.error("Failed to delete playlist:", error);
+      showToast("Failed to delete playlist. Please try again.", "error");
+    } finally {
+      setDeletePlaylistDialogOpen(false);
+      setDeletePlaylistTarget(null);
     }
   };
 
@@ -479,20 +534,22 @@ export default function MusicPage() {
       const res = await fetch(`/api/playlists/${playlist.id}`);
       const data = await res.json();
       const songsData = data.songs || [];
-      
-      const uniqueUserIds = [...new Set(songsData.map((s: PlaylistSong) => s.added_by))];
+
+      const uniqueUserIds = [
+        ...new Set(songsData.map((s: PlaylistSong) => s.added_by)),
+      ];
       const namePromises = uniqueUserIds.map(async (userId) => {
         const name = await fetchMemberName(userId as string);
         return [userId, name];
       });
       const nameEntries = await Promise.all(namePromises);
       const nameMap = Object.fromEntries(nameEntries);
-      
+
       const enrichedSongs = songsData.map((s: PlaylistSong) => ({
         ...s,
-        adder_name: nameMap[s.added_by] || s.added_by
+        adder_name: nameMap[s.added_by] || s.added_by,
       }));
-      
+
       setPlaylistSongs(enrichedSongs);
     } catch (error) {
       console.error("Failed to fetch playlist songs:", error);
@@ -520,10 +577,11 @@ export default function MusicPage() {
       if (res.ok) {
         setPlaylists((prev) =>
           prev.map((p) =>
-            p.id === playlistId ? { ...p, song_count: p.song_count + 1 } : p
-          )
+            p.id === playlistId ? { ...p, song_count: p.song_count + 1 } : p,
+          ),
         );
-        const playlistName = playlists.find(p => p.id === playlistId)?.name || "playlist";
+        const playlistName =
+          playlists.find((p) => p.id === playlistId)?.name || "playlist";
         showToast(`Added "${video.title}" to ${playlistName}!`);
       } else {
         showToast(data.error || "Failed to add song to playlist", "error");
@@ -542,7 +600,7 @@ export default function MusicPage() {
     try {
       const res = await fetch(
         `/api/playlists/${selectedPlaylistForView.id}/songs/${songId}`,
-        { method: "DELETE" }
+        { method: "DELETE" },
       );
       if (res.ok) {
         setPlaylistSongs((prev) => prev.filter((s) => s.id !== songId));
@@ -550,8 +608,8 @@ export default function MusicPage() {
           prev.map((p) =>
             p.id === selectedPlaylistForView.id
               ? { ...p, song_count: Math.max(0, p.song_count - 1) }
-              : p
-          )
+              : p,
+          ),
         );
       }
     } catch (error) {
@@ -560,25 +618,53 @@ export default function MusicPage() {
   };
 
   const handlePlayPlaylist = async (playlist: Playlist) => {
-    if (!selectedChannel) return;
+    if (!selectedChannel) {
+      showToast("Please select a voice channel first", "error");
+      return;
+    }
+
+    setPlaylistPanelOpen(false); // Close the dialog
+    showToast(`Playing ${playlist.name}...`, "success");
+
     try {
       const res = await fetch(`/api/playlists/${playlist.id}`);
       const data = await res.json();
       const songs: PlaylistSong[] = data.songs || [];
-      
-      for (const song of songs) {
-        await musicPlay(
-          selectedChannel,
-          song.youtube_url,
-          discordUserId ?? "web",
-          session?.user?.user_metadata?.full_name ?? "Web Player"
-        );
-        await new Promise((resolve) => setTimeout(resolve, 500));
+
+      if (songs.length === 0) {
+        showToast("This playlist is empty", "error");
+        return;
       }
-      
+
+      let failedCount = 0;
+      for (const song of songs) {
+        try {
+          const result = await musicPlay(
+            selectedChannel,
+            song.youtube_url,
+            discordUserId ?? "web",
+            session?.user?.user_metadata?.full_name ?? "Web Player",
+          );
+          if (result.error) {
+            failedCount++;
+          }
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        } catch (error) {
+          failedCount++;
+        }
+      }
+
+      if (failedCount > 0) {
+        showToast(
+          `${songs.length - failedCount}/${songs.length} songs added (${failedCount} failed due to restrictions)`,
+          "error",
+        );
+      }
+
       multiPoll([500, 1500]);
     } catch (error) {
       console.error("Failed to play playlist:", error);
+      showToast("Failed to load playlist", "error");
     }
   };
 
@@ -627,14 +713,24 @@ export default function MusicPage() {
     }
     try {
       const prevUrl = currentSongUrlRef.current;
-      await musicPlay(
+      const result = await musicPlay(
         selectedChannel,
         video.url,
         discordUserId ?? "web",
         session?.user?.user_metadata?.full_name ?? "Web Player",
       );
-      startTransition(prevUrl);
-    } catch {
+
+      if (result.error) {
+        showToast(
+          `⚠️ Song playback failed due to YouTube restrictions`,
+          "error",
+        );
+        setOptimisticQueue((prev) => prev.filter((o) => o.id !== video.id));
+      } else {
+        startTransition(prevUrl);
+      }
+    } catch (error) {
+      showToast("Failed to play song. Please try another.", "error");
       setOptimisticQueue((prev) => prev.filter((o) => o.id !== video.id));
     }
     setLoadingPlay(null);
@@ -767,7 +863,9 @@ export default function MusicPage() {
                   onChange={(e) => setSelectedChannel(e.target.value)}
                   className="text-sm bg-muted border border-border/50 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40"
                 >
-                  {channels.length === 0 && <option value="">Loading...</option>}
+                  {channels.length === 0 && (
+                    <option value="">Loading...</option>
+                  )}
                   {channels.map((c) => {
                     const isUserHere = discordUserId
                       ? c.memberIds?.includes(discordUserId)
@@ -830,6 +928,75 @@ export default function MusicPage() {
         </div>
 
         {/* Section label */}
+        {!debouncedQuery && playlists.length > 0 && (
+          <>
+            <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-4">
+              Your Playlists
+            </p>
+
+            {/* Playlists horizontal scroll */}
+            <div className="flex gap-3 overflow-x-auto pb-4 mb-6 scrollbar-hide">
+              {playlists.slice(0, 10).map((playlist) => (
+                <button
+                  key={playlist.id}
+                  onClick={() => {
+                    setSelectedPlaylistForView(playlist);
+                    handleViewPlaylist(playlist);
+                    setPlaylistPanelOpen(true);
+                  }}
+                  className="shrink-0 w-44 group"
+                >
+                  <div className="relative aspect-video bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl overflow-hidden border border-white/10 mb-2 flex items-center justify-center">
+                    {/* Playlist icon overlay */}
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      <svg
+                        className="h-12 w-12 text-white/80"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
+                      </svg>
+                    </div>
+                    {/* Playlist badge */}
+                    <div className="absolute top-2 right-2 px-2 py-1 bg-black/70 backdrop-blur-sm rounded-md flex items-center gap-1.5">
+                      <svg
+                        className="h-3 w-3 text-white"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+                      </svg>
+                      <span className="text-[10px] font-semibold text-white">
+                        {playlist.song_count}
+                      </span>
+                    </div>
+                    {playlist.is_locked && (
+                      <svg
+                        className="absolute top-2 left-2 h-3.5 w-3.5 text-white/70"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    )}
+                  </div>
+                  <p className="text-xs font-medium leading-tight line-clamp-2 text-left group-hover:text-primary transition-colors">
+                    {playlist.name}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate text-left">
+                    {playlist.song_count} song
+                    {playlist.song_count !== 1 ? "s" : ""}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
         <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-4">
           {debouncedQuery
             ? `Results for "${debouncedQuery}"`
@@ -891,8 +1058,12 @@ export default function MusicPage() {
                       handleVideoLongPress(video, e.nativeEvent);
                     }, 500);
                     const clearTimer = () => clearTimeout(longPressTimer);
-                    e.currentTarget.addEventListener("touchend", clearTimer, { once: true });
-                    e.currentTarget.addEventListener("touchmove", clearTimer, { once: true });
+                    e.currentTarget.addEventListener("touchend", clearTimer, {
+                      once: true,
+                    });
+                    e.currentTarget.addEventListener("touchmove", clearTimer, {
+                      once: true,
+                    });
                   }}
                   disabled={!selectedChannel || loadingPlay === video.id}
                   className={`group relative text-left rounded-xl overflow-hidden border transition-all duration-200 ${
@@ -1379,7 +1550,9 @@ export default function MusicPage() {
             }}
           >
             <div className="px-3 py-2 border-b border-border/50">
-              <p className="text-xs font-medium truncate">{contextMenu.video.title}</p>
+              <p className="text-xs font-medium truncate">
+                {contextMenu.video.title}
+              </p>
             </div>
             <button
               onClick={() => handlePlay(contextMenu.video)}
@@ -1400,11 +1573,15 @@ export default function MusicPage() {
               </div>
             ) : (
               playlists.map((playlist) => {
-                const isLocked = playlist.is_locked && playlist.created_by !== discordUserId;
+                const isLocked =
+                  playlist.is_locked && playlist.created_by !== discordUserId;
                 return (
                   <button
                     key={playlist.id}
-                    onClick={() => !isLocked && handleAddToPlaylist(playlist.id, contextMenu.video)}
+                    onClick={() =>
+                      !isLocked &&
+                      handleAddToPlaylist(playlist.id, contextMenu.video)
+                    }
                     disabled={isLocked || addingToPlaylist}
                     className={`w-full px-3 py-2 text-left text-sm flex items-center justify-between ${
                       isLocked
@@ -1414,8 +1591,16 @@ export default function MusicPage() {
                   >
                     <span className="truncate">{playlist.name}</span>
                     {playlist.is_locked && (
-                      <svg className="h-3 w-3 shrink-0 ml-2" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                      <svg
+                        className="h-3 w-3 shrink-0 ml-2"
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                          clipRule="evenodd"
+                        />
                       </svg>
                     )}
                   </button>
@@ -1457,19 +1642,31 @@ export default function MusicPage() {
                       }}
                       className="p-2 hover:bg-muted rounded-lg transition-colors"
                     >
-                      <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      <svg
+                        className="h-5 w-5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
                       </svg>
                     </button>
                   </div>
-                  
+
                   {!selectedPlaylistForView && (
                     <div className="mt-4 flex gap-2">
                       <Input
                         placeholder="New playlist name..."
                         value={newPlaylistName}
                         onChange={(e) => setNewPlaylistName(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && handleCreatePlaylist()}
+                        onKeyDown={(e) =>
+                          e.key === "Enter" && handleCreatePlaylist()
+                        }
                         className="flex-1"
                       />
                       <Button
@@ -1490,12 +1687,24 @@ export default function MusicPage() {
                           onClick={() => setSelectedPlaylistForView(null)}
                           className="p-2 hover:bg-muted rounded-lg"
                         >
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                          <svg
+                            className="h-5 w-5"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M15 19l-7-7 7-7"
+                            />
                           </svg>
                         </button>
                         <div className="flex-1">
-                          <h3 className="text-lg font-semibold">{selectedPlaylistForView.name}</h3>
+                          <h3 className="text-lg font-semibold">
+                            {selectedPlaylistForView.name}
+                          </h3>
                           <p className="text-sm text-muted-foreground">
                             {playlistSongs.length} song(s)
                           </p>
@@ -1503,7 +1712,9 @@ export default function MusicPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handlePlayPlaylist(selectedPlaylistForView)}
+                          onClick={() =>
+                            handlePlayPlaylist(selectedPlaylistForView)
+                          }
                           disabled={playlistSongs.length === 0}
                         >
                           Play All
@@ -1525,14 +1736,18 @@ export default function MusicPage() {
                               key={song.id}
                               className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
                             >
-                              <span className="text-xs text-muted-foreground w-6">{index + 1}</span>
+                              <span className="text-xs text-muted-foreground w-6">
+                                {index + 1}
+                              </span>
                               <img
                                 src={song.song_thumbnail}
                                 alt={song.song_title}
                                 className="w-12 h-12 rounded object-cover"
                               />
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{song.song_title}</p>
+                                <p className="text-sm font-medium truncate">
+                                  {song.song_title}
+                                </p>
                                 <p className="text-xs text-muted-foreground truncate">
                                   {song.song_channel} • {song.song_duration}
                                 </p>
@@ -1541,13 +1756,21 @@ export default function MusicPage() {
                                 </p>
                               </div>
                               {(!selectedPlaylistForView.is_locked ||
-                                selectedPlaylistForView.created_by === discordUserId ||
+                                selectedPlaylistForView.created_by ===
+                                  discordUserId ||
                                 song.added_by === discordUserId) && (
                                 <button
-                                  onClick={() => handleRemoveFromPlaylist(song.id)}
+                                  onClick={() =>
+                                    handleRemoveFromPlaylist(song.id)
+                                  }
                                   className="p-2 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors"
                                 >
-                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
                                     <path
                                       strokeLinecap="round"
                                       strokeLinejoin="round"
@@ -1583,15 +1806,23 @@ export default function MusicPage() {
                   ) : (
                     <div className="space-y-3">
                       {playlists.map((playlist) => {
-                        const isOwner = session?.user?.user_metadata?.roles?.includes(OWNER_ROLE_ID);
+                        const isOwner =
+                          session?.user?.user_metadata?.roles?.includes(
+                            OWNER_ROLE_ID,
+                          );
                         const isCreator = playlist.created_by === discordUserId;
-                        
+
                         if (editingPlaylist?.id === playlist.id) {
                           return (
-                            <div key={playlist.id} className="flex items-center gap-2 p-4 bg-muted/30 rounded-lg">
+                            <div
+                              key={playlist.id}
+                              className="flex items-center gap-2 p-4 bg-muted/30 rounded-lg"
+                            >
                               <Input
                                 value={editPlaylistName}
-                                onChange={(e) => setEditPlaylistName(e.target.value)}
+                                onChange={(e) =>
+                                  setEditPlaylistName(e.target.value)
+                                }
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") handleRenamePlaylist();
                                   if (e.key === "Escape") {
@@ -1602,7 +1833,11 @@ export default function MusicPage() {
                                 className="flex-1"
                                 autoFocus
                               />
-                              <Button size="sm" onClick={handleRenamePlaylist} disabled={savingPlaylist}>
+                              <Button
+                                size="sm"
+                                onClick={handleRenamePlaylist}
+                                disabled={savingPlaylist}
+                              >
                                 Save
                               </Button>
                               <Button
@@ -1629,36 +1864,63 @@ export default function MusicPage() {
                               className="flex-1 flex items-center gap-3 min-w-0 text-left"
                             >
                               <div className="p-2 bg-primary/10 rounded-lg">
-                                <svg className="h-5 w-5 text-primary" fill="currentColor" viewBox="0 0 20 20">
+                                <svg
+                                  className="h-5 w-5 text-primary"
+                                  fill="currentColor"
+                                  viewBox="0 0 20 20"
+                                >
                                   <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
                                 </svg>
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2">
-                                  <p className="font-medium truncate">{playlist.name}</p>
+                                  <p className="font-medium truncate">
+                                    {playlist.name}
+                                  </p>
                                   {playlist.is_locked && (
-                                    <svg className="h-3.5 w-3.5 text-muted-foreground shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                    <svg
+                                      className="h-3.5 w-3.5 text-muted-foreground shrink-0"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                                        clipRule="evenodd"
+                                      />
                                     </svg>
                                   )}
                                 </div>
                                 <p className="text-xs text-muted-foreground">
-                                  {playlist.song_count} song(s) • Created by {playlist.creator_name || playlist.created_by}
+                                  {playlist.song_count} song(s) • Created by{" "}
+                                  {playlist.creator_name || playlist.created_by}
                                 </p>
                               </div>
                             </button>
-                            
+
                             <div className="flex items-center gap-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
                               {isCreator && (
                                 <>
                                   <button
-                                    onClick={() => handleTogglePlaylistLock(playlist)}
+                                    onClick={() =>
+                                      handleTogglePlaylistLock(playlist)
+                                    }
                                     className="p-2 hover:bg-muted rounded-lg transition-colors"
-                                    title={playlist.is_locked ? "Unlock" : "Lock"}
+                                    title={
+                                      playlist.is_locked ? "Unlock" : "Lock"
+                                    }
                                   >
-                                    <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 20 20">
+                                    <svg
+                                      className="h-4 w-4"
+                                      fill="currentColor"
+                                      viewBox="0 0 20 20"
+                                    >
                                       {playlist.is_locked ? (
-                                        <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                                        <path
+                                          fillRule="evenodd"
+                                          d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                                          clipRule="evenodd"
+                                        />
                                       ) : (
                                         <path d="M10 2a5 5 0 00-5 5v2a2 2 0 00-2 2v5a2 2 0 002 2h10a2 2 0 002-2v-5a2 2 0 00-2-2H7V7a3 3 0 015.905-.75 1 1 0 001.937-.5A5.002 5.002 0 0010 2z" />
                                       )}
@@ -1672,8 +1934,18 @@ export default function MusicPage() {
                                     className="p-2 hover:bg-muted rounded-lg transition-colors"
                                     title="Rename"
                                   >
-                                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                    <svg
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                      />
                                     </svg>
                                   </button>
                                 </>
@@ -1687,7 +1959,12 @@ export default function MusicPage() {
                                   className="p-2 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors"
                                   title="Delete"
                                 >
-                                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <svg
+                                    className="h-4 w-4"
+                                    fill="none"
+                                    viewBox="0 0 24 24"
+                                    stroke="currentColor"
+                                  >
                                     <path
                                       strokeLinecap="round"
                                       strokeLinejoin="round"
