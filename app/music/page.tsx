@@ -693,7 +693,7 @@ export default function MusicPage() {
       );
       if (result.error) {
         showToast(
-          `⚠️ Song playback failed due to YouTube restrictions`,
+          `⚠️ YouTube has rate-limited us. Please try again in a bit.`,
           "error",
         );
       } else {
@@ -838,7 +838,7 @@ export default function MusicPage() {
 
       if (result.error) {
         showToast(
-          `⚠️ Song playback failed due to YouTube restrictions`,
+          `⚠️ YouTube has rate-limited us. Please try again in a bit.`,
           "error",
         );
         setOptimisticQueue((prev) => prev.filter((o) => o.id !== video.id));
