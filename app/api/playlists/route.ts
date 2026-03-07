@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient } from "@/lib/supabase-server";
-import { getSession } from "@/lib/auth";
+import { createServerSupabaseClient, getServerSession } from "@/lib/supabase-server";
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getServerSession();
     const supabase = await createServerSupabaseClient();
 
     const { data: playlists, error } = await supabase
@@ -35,7 +34,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const session = await getServerSession();
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
