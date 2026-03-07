@@ -18,6 +18,43 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Migrate] Found ${uniqueUrls.length} unique songs to cache`);
 
+    // Verify zyra bot is reachable
+    const botUrl = process.env.MUSIC_BOT_API_URL;
+    if (!botUrl) {
+      return NextResponse.json(
+        { error: "MUSIC_BOT_API_URL not configured" },
+        { status: 500 },
+      );
+    }
+
+    console.log(`[Migrate] Testing connection to: ${botUrl}`);
+    try {
+      const healthCheck = await fetch(`${botUrl}/health`, {
+        headers: { Authorization: `Bearer ${process.env.MUSIC_BOT_API_KEY}` },
+      });
+      const healthData = await healthCheck.json().catch(() => ({}));
+      console.log(`[Migrate] Health check response:`, healthData);
+      if (!healthCheck.ok) {
+        return NextResponse.json(
+          {
+            error: `Zyra bot not reachable at ${botUrl}. Health check failed with status ${healthCheck.status}`,
+            details: healthData,
+          },
+          { status: 502 },
+        );
+      }
+    } catch (healthError: any) {
+      console.error(`[Migrate] Health check failed:`, healthError);
+      return NextResponse.json(
+        {
+          error: `Cannot connect to zyra bot at ${botUrl}`,
+          details: healthError.message,
+          cause: healthError.cause?.message,
+        },
+        { status: 502 },
+      );
+    }
+
     const results = {
       total: uniqueUrls.length,
       successful: 0,
@@ -32,11 +69,6 @@ export async function POST(request: NextRequest) {
       );
 
       try {
-        const botUrl = process.env.MUSIC_BOT_API_URL;
-        if (!botUrl) {
-          throw new Error("MUSIC_BOT_API_URL not configured");
-        }
-
         console.log(`[Migrate] Calling: ${botUrl}/cache-song`);
 
         const response = await fetch(`${botUrl}/cache-song`, {
@@ -72,8 +104,16 @@ export async function POST(request: NextRequest) {
       } catch (error: any) {
         results.failed++;
         const errorMsg = error.message || String(error);
-        results.errors.push(`${url}: ${errorMsg}`);
-        console.error(`[Migrate] ❌ Exception: ${url} - ${errorMsg}`);
+        const detailedError = {
+          message: error.message,
+          cause: error.cause,
+          stack: error.stack?.split("\n")[0],
+          type: error.constructor?.name,
+        };
+        console.error(`[Migrate] ❌ Exception: ${url}`, detailedError);
+        results.errors.push(
+          `${url}: ${errorMsg} (${error.constructor?.name || "Error"})`,
+        );
       }
     }
 
