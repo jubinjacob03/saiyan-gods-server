@@ -95,6 +95,17 @@ export async function POST(
 
     if (songError) throw songError;
 
+    fetch(`${process.env.BOT_API_URL}/cache-song`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.BOT_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ youtubeUrl: youtube_url }),
+    }).catch((err) =>
+      console.error("[cache-song] Background caching failed:", err),
+    );
+
     return NextResponse.json({ song });
   } catch (error) {
     console.error("[playlists/id/songs] POST error:", error);

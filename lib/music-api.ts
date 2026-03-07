@@ -58,6 +58,7 @@ export function musicPlay(
   query: string,
   userId: string,
   username: string,
+  fromPlaylist?: boolean,
 ): Promise<{ success?: boolean; song?: Song; added?: number; error?: string }> {
   return fetch("/api/bot/music/play", {
     method: "POST",
@@ -68,6 +69,7 @@ export function musicPlay(
       query,
       userId,
       username,
+      fromPlaylist,
     }),
   }).then((r) => r.json());
 }

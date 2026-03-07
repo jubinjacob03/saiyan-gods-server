@@ -655,6 +655,7 @@ export default function MusicPage() {
             song.youtube_url,
             discordUserId ?? "web",
             session?.user?.user_metadata?.full_name ?? "Web Player",
+            true,
           );
           if (result.error) {
             failedCount++;
@@ -690,6 +691,7 @@ export default function MusicPage() {
         song.youtube_url,
         discordUserId ?? "web",
         session?.user?.user_metadata?.full_name ?? "Web Player",
+        true,
       );
       if (result.error) {
         showToast(

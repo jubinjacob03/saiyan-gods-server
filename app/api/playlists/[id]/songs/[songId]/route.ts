@@ -67,6 +67,17 @@ export async function DELETE(
 
     if (deleteError) throw deleteError;
 
+    fetch(`${process.env.BOT_API_URL}/delete-cache`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${process.env.BOT_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ youtubeUrl: song.youtube_url }),
+    }).catch((err) =>
+      console.error("[delete-cache] Background deletion failed:", err),
+    );
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("[playlists/id/songs/songId] DELETE error:", error);
