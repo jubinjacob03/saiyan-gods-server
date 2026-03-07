@@ -331,12 +331,16 @@ export default function MusicPage() {
       .then((r) => r.json())
       .then((d) => {
         if (d.error) {
-          setVideoError(d.error);
+          const errorMsg = d.details?.errors?.[0]?.reason 
+            ? `YouTube API: ${d.details.errors[0].reason} - ${d.details.errors[0].message}`
+            : d.error;
+          setVideoError(errorMsg);
           setVideos([]);
         } else setVideos(d.videos ?? []);
       })
-      .catch(() => {
-        setVideoError("Failed to fetch results.");
+      .catch((err) => {
+        console.error("YouTube fetch error:", err);
+        setVideoError("Failed to fetch results. Please try again.");
         setVideos([]);
       })
       .finally(() => setLoadingVideos(false));

@@ -39,6 +39,18 @@ export async function GET(request: NextRequest) {
       );
       const searchData = await searchRes.json();
 
+      // Check for YouTube API errors
+      if (searchData.error) {
+        console.error("[YouTube API Error]", searchData.error);
+        return NextResponse.json(
+          { 
+            error: searchData.error.message || "YouTube API error",
+            details: searchData.error
+          },
+          { status: searchData.error.code || 500 },
+        );
+      }
+
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const filtered = (searchData.items ?? []).filter(
         (item: any) => !MIX_RE.test(item.snippet.title),
@@ -56,6 +68,18 @@ export async function GET(request: NextRequest) {
         { next: { revalidate: 3600 } },
       );
       const trendData = await trendRes.json();
+
+      // Check for YouTube API errors
+      if (trendData.error) {
+        console.error("[YouTube API Error]", trendData.error);
+        return NextResponse.json(
+          { 
+            error: trendData.error.message || "YouTube API error",
+            details: trendData.error
+          },
+          { status: trendData.error.code || 500 },
+        );
+      }
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const filtered = (trendData.items ?? []).filter(
@@ -76,6 +100,18 @@ export async function GET(request: NextRequest) {
       { next: { revalidate: 3600 } },
     );
     const detailsData = await detailsRes.json();
+
+    // Check for YouTube API errors
+    if (detailsData.error) {
+      console.error("[YouTube API Error]", detailsData.error);
+      return NextResponse.json(
+        { 
+          error: detailsData.error.message || "YouTube API error",
+          details: detailsData.error
+        },
+        { status: detailsData.error.code || 500 },
+      );
+    }
 
     const durations: Record<string, string> = {};
     const restrictedIds = new Set<string>();
