@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
   const searchQuery = q || "trending music"; // Default search if empty
 
   try {
-    const response = await fetch(`${MUSIC_BOT_API_URL}/api/search`, {
+    const response = await fetch(`${MUSIC_BOT_API_URL}/search`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
