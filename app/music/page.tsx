@@ -46,6 +46,7 @@ interface Playlist {
   created_at: string;
   updated_at: string;
   song_count: number;
+  thumbnail: string | null;
 }
 
 interface PlaylistSong {
@@ -164,6 +165,8 @@ export default function MusicPage() {
   const [selectedPlaylistForView, setSelectedPlaylistForView] =
     useState<Playlist | null>(null);
   const [playlistSongs, setPlaylistSongs] = useState<PlaylistSong[]>([]);
+  const [draggedSongIndex, setDraggedSongIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [loadingPlaylistSongs, setLoadingPlaylistSongs] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [addingToPlaylist, setAddingToPlaylist] = useState(false);
@@ -617,7 +620,10 @@ export default function MusicPage() {
     }
   };
 
-  const handlePlayPlaylist = async (playlist: Playlist, closeDialog = false) => {
+  const handlePlayPlaylist = async (
+    playlist: Playlist,
+    closeDialog = false,
+  ) => {
     if (!selectedChannel) {
       showToast("Please select a voice channel first", "error");
       return;
@@ -686,13 +692,95 @@ export default function MusicPage() {
         session?.user?.user_metadata?.full_name ?? "Web Player",
       );
       if (result.error) {
-        showToast(`⚠️ Song playback failed due to YouTube restrictions`, "error");
+        showToast(
+          `⚠️ Song playback failed due to YouTube restrictions`,
+          "error",
+        );
       } else {
         showToast(`Playing ${song.song_title}`, "success");
         startTransition(currentSongUrlRef.current);
       }
     } catch (error) {
       showToast("Failed to play song. Please try another.", "error");
+    }
+  };
+
+  const handleDragStart = (index: number) => {
+    setDraggedSongIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    setDragOverIndex(index);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
+    e.preventDefault();
+    if (draggedSongIndex === null || draggedSongIndex === dropIndex) {
+      setDraggedSongIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    if (!selectedPlaylistForView) return;
+
+    // Check if user can reorder
+    const isLocked = selectedPlaylistForView.is_locked;
+    const isCreator = selectedPlaylistForView.created_by === discordUserId;
+    if (isLocked && !isCreator) {
+      showToast("This playlist is locked", "error");
+      setDraggedSongIndex(null);
+      setDragOverIndex(null);
+      return;
+    }
+
+    // Reorder locally
+    const newSongs = [...playlistSongs];
+    const [draggedSong] = newSongs.splice(draggedSongIndex, 1);
+    newSongs.splice(dropIndex, 0, draggedSong);
+
+    // Update positions
+    const updatedSongs = newSongs.map((song, idx) => ({
+      ...song,
+      position: idx,
+    }));
+
+    setPlaylistSongs(updatedSongs);
+    setDraggedSongIndex(null);
+    setDragOverIndex(null);
+
+    // Save to database
+    try {
+      const response = await fetch(
+        `/api/playlists/${selectedPlaylistForView.id}/songs/reorder`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            songs: updatedSongs.map((s) => ({
+              id: s.id,
+              position: s.position,
+            })),
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || "Failed to reorder");
+      }
+
+      showToast("Playlist order updated", "success");
+      // Refresh playlists to update thumbnails if needed
+      fetchPlaylists();
+    } catch (error: any) {
+      showToast(error.message || "Failed to reorder songs", "error");
+      // Revert on error
+      await handleViewPlaylist(selectedPlaylistForView);
     }
   };
 
@@ -961,7 +1049,7 @@ export default function MusicPage() {
             <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-4">
               Your Playlists
             </p>
-            
+
             {/* Playlists grid - matching video card style */}
             <motion.div
               initial={{ opacity: 0 }}
@@ -986,27 +1074,52 @@ export default function MusicPage() {
                     className="w-full text-left rounded-xl overflow-hidden border border-border/40 hover:border-primary/40 bg-card hover:bg-muted/30 transition-all duration-200 shadow-sm hover:shadow-md"
                   >
                     {/* Playlist card header */}
-                    <div className="relative aspect-video bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center group-hover:from-primary/20 group-hover:via-primary/10 transition-all duration-300">
-                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,119,198,0.05),rgba(255,255,255,0))]" />
-                      <svg 
-                        className="h-14 w-14 text-primary/40 group-hover:text-primary/60 transition-colors duration-300" 
-                        fill="currentColor" 
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
-                      </svg>
-                      
+                    <div className="relative aspect-video bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center group-hover:from-primary/20 group-hover:via-primary/10 transition-all duration-300 overflow-hidden">
+                      {playlist.thumbnail ? (
+                        <>
+                          <img
+                            src={playlist.thumbnail}
+                            alt={playlist.name}
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                        </>
+                      ) : (
+                        <>
+                          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,119,198,0.05),rgba(255,255,255,0))]" />
+                          <svg
+                            className="h-14 w-14 text-primary/40 group-hover:text-primary/60 transition-colors duration-300"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
+                            <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
+                          </svg>
+                        </>
+                      )}
+
                       {/* Top badges */}
                       <div className="absolute top-2 left-2 right-2 flex items-start justify-between">
                         {playlist.is_locked && (
                           <div className="px-2 py-1 bg-background/90 backdrop-blur-sm rounded-md border border-border/50">
-                            <svg className="h-3 w-3 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
-                              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                            <svg
+                              className="h-3 w-3 text-muted-foreground"
+                              fill="currentColor"
+                              viewBox="0 0 20 20"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
+                                clipRule="evenodd"
+                              />
                             </svg>
                           </div>
                         )}
                         <div className="ml-auto px-2 py-1 bg-background/90 backdrop-blur-sm rounded-md border border-border/50 flex items-center gap-1.5">
-                          <svg className="h-3 w-3 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
+                          <svg
+                            className="h-3 w-3 text-muted-foreground"
+                            fill="currentColor"
+                            viewBox="0 0 20 20"
+                          >
                             <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
                           </svg>
                           <span className="text-[10px] font-semibold text-foreground">
@@ -1017,18 +1130,22 @@ export default function MusicPage() {
 
                       {/* Play button overlay on hover */}
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                        <motion.div 
+                        <motion.div
                           initial={{ scale: 0.8 }}
                           whileHover={{ scale: 1.1 }}
                           className="p-3 bg-primary rounded-full shadow-lg"
                         >
-                          <svg className="h-6 w-6 text-primary-foreground" fill="currentColor" viewBox="0 0 24 24">
+                          <svg
+                            className="h-6 w-6 text-primary-foreground"
+                            fill="currentColor"
+                            viewBox="0 0 24 24"
+                          >
                             <path d="M8 5v14l11-7z" />
                           </svg>
                         </motion.div>
                       </div>
                     </div>
-                    
+
                     {/* Playlist info */}
                     <div className="p-2.5">
                       <p className="text-xs font-medium leading-tight line-clamp-2 group-hover:text-primary transition-colors">
@@ -1037,11 +1154,14 @@ export default function MusicPage() {
                       <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
                         <span>Playlist</span>
                         <span>•</span>
-                        <span>{playlist.song_count} song{playlist.song_count !== 1 ? 's' : ''}</span>
+                        <span>
+                          {playlist.song_count} song
+                          {playlist.song_count !== 1 ? "s" : ""}
+                        </span>
                       </p>
                     </div>
                   </button>
-                  
+
                   {/* Manage button - right click hint */}
                   <button
                     onClick={(e) => {
@@ -1052,8 +1172,18 @@ export default function MusicPage() {
                     }}
                     className="mt-1.5 w-full text-[10px] text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded-lg hover:bg-muted/50 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100"
                   >
-                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                    <svg
+                      className="h-3 w-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                      />
                     </svg>
                     <span>Manage</span>
                   </button>
@@ -1798,11 +1928,16 @@ export default function MusicPage() {
                       ) : (
                         <div className="space-y-2">
                           {playlistSongs.map((song, index) => {
-                            const isCurrentlyPlaying = status?.song?.url?.includes(song.youtube_url);
-                            const canRemove = !selectedPlaylistForView.is_locked ||
-                              selectedPlaylistForView.created_by === discordUserId ||
+                            const isCurrentlyPlaying =
+                              status?.song?.url?.includes(song.youtube_url);
+                            const canRemove =
+                              !selectedPlaylistForView.is_locked ||
+                              selectedPlaylistForView.created_by ===
+                                discordUserId ||
                               song.added_by === discordUserId;
-                            
+                            const isDragging = draggedSongIndex === index;
+                            const isDragOver = dragOverIndex === index;
+
                             return (
                               <motion.div
                                 key={song.id}
@@ -1810,17 +1945,40 @@ export default function MusicPage() {
                                 animate={{ opacity: 1, y: 0 }}
                                 transition={{ delay: index * 0.02 }}
                                 className="group"
+                                draggable
+                                onDragStart={() => handleDragStart(index)}
+                                onDragOver={(e) => handleDragOver(e, index)}
+                                onDragLeave={handleDragLeave}
+                                onDrop={(e) => handleDrop(e, index)}
                               >
-                                <div className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
-                                  isCurrentlyPlaying 
-                                    ? 'bg-primary/10 border border-primary/40' 
-                                    : 'bg-muted/30 hover:bg-muted/50 border border-transparent hover:border-border/50'
-                                }`}>
+                                <div
+                                  className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
+                                    isCurrentlyPlaying
+                                      ? "bg-primary/10 border border-primary/40"
+                                      : isDragOver
+                                        ? "bg-primary/5 border border-primary/60 border-dashed"
+                                        : isDragging
+                                          ? "bg-muted/20 border border-border/30 opacity-50"
+                                          : "bg-muted/30 hover:bg-muted/50 border border-transparent hover:border-border/50"
+                                  } ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+                                >
+                                  {/* Drag handle */}
+                                  <div className="shrink-0 text-muted-foreground/40 group-hover:text-muted-foreground/80 transition-colors">
+                                    <svg
+                                      className="h-4 w-4"
+                                      fill="currentColor"
+                                      viewBox="0 0 16 16"
+                                    >
+                                      <path d="M7 2a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 5a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zM7 8a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm-3 3a1 1 0 1 1-2 0 1 1 0 0 1 2 0zm3 0a1 1 0 1 1-2 0 1 1 0 0 1 2 0z" />
+                                    </svg>
+                                  </div>
                                   <span className="text-xs text-muted-foreground w-6 shrink-0">
                                     {index + 1}
                                   </span>
                                   <button
-                                    onClick={() => handlePlaySongFromPlaylist(song)}
+                                    onClick={() =>
+                                      handlePlaySongFromPlaylist(song)
+                                    }
                                     className="relative shrink-0 group/play"
                                   >
                                     <img
@@ -1829,9 +1987,9 @@ export default function MusicPage() {
                                       className="w-12 h-12 rounded object-cover"
                                     />
                                     <div className="absolute inset-0 bg-black/0 group-hover/play:bg-black/60 transition-all duration-200 rounded flex items-center justify-center">
-                                      <svg 
-                                        className="h-6 w-6 text-white opacity-0 group-hover/play:opacity-100 transition-opacity duration-200" 
-                                        fill="currentColor" 
+                                      <svg
+                                        className="h-6 w-6 text-white opacity-0 group-hover/play:opacity-100 transition-opacity duration-200"
+                                        fill="currentColor"
                                         viewBox="0 0 24 24"
                                       >
                                         <path d="M8 5v14l11-7z" />
@@ -1843,32 +2001,47 @@ export default function MusicPage() {
                                           <motion.div
                                             key={i}
                                             className="w-1 bg-primary rounded-full"
-                                            animate={{ height: ['4px', '14px', '4px'] }}
-                                            transition={{ repeat: Infinity, duration: 0.8, delay: d / 1000 }}
+                                            animate={{
+                                              height: ["4px", "14px", "4px"],
+                                            }}
+                                            transition={{
+                                              repeat: Infinity,
+                                              duration: 0.8,
+                                              delay: d / 1000,
+                                            }}
                                           />
                                         ))}
                                       </div>
                                     )}
                                   </button>
                                   <button
-                                    onClick={() => handlePlaySongFromPlaylist(song)}
+                                    onClick={() =>
+                                      handlePlaySongFromPlaylist(song)
+                                    }
                                     className="flex-1 min-w-0 text-left"
                                   >
-                                    <p className={`text-sm font-medium truncate transition-colors ${
-                                      isCurrentlyPlaying ? 'text-primary' : 'group-hover:text-foreground'
-                                    }`}>
+                                    <p
+                                      className={`text-sm font-medium truncate transition-colors ${
+                                        isCurrentlyPlaying
+                                          ? "text-primary"
+                                          : "group-hover:text-foreground"
+                                      }`}
+                                    >
                                       {song.song_title}
                                     </p>
                                     <p className="text-xs text-muted-foreground truncate">
                                       {song.song_channel} • {song.song_duration}
                                     </p>
                                     <p className="text-[10px] text-muted-foreground/60">
-                                      Added by {song.adder_name || song.added_by}
+                                      Added by{" "}
+                                      {song.adder_name || song.added_by}
                                     </p>
                                   </button>
                                   <div className="flex items-center gap-1 shrink-0">
                                     <button
-                                      onClick={() => handlePlaySongFromPlaylist(song)}
+                                      onClick={() =>
+                                        handlePlaySongFromPlaylist(song)
+                                      }
                                       className="p-2 hover:bg-primary/10 hover:text-primary rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                                       title="Play now"
                                     >
@@ -1882,7 +2055,9 @@ export default function MusicPage() {
                                     </button>
                                     {canRemove && (
                                       <button
-                                        onClick={() => handleRemoveFromPlaylist(song.id)}
+                                        onClick={() =>
+                                          handleRemoveFromPlaylist(song.id)
+                                        }
                                         className="p-2 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors opacity-0 group-hover:opacity-100"
                                         title="Remove from playlist"
                                       >
