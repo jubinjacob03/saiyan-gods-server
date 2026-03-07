@@ -617,17 +617,22 @@ export default function MusicPage() {
     }
   };
 
-  const handlePlayPlaylist = async (playlist: Playlist) => {
+  const handlePlayPlaylist = async (playlist: Playlist, closeDialog = false) => {
     if (!selectedChannel) {
       showToast("Please select a voice channel first", "error");
       return;
     }
 
-    setPlaylistPanelOpen(false); // Close the dialog
+    if (closeDialog) {
+      setPlaylistPanelOpen(false); // Close the dialog
+    }
     showToast(`Playing ${playlist.name}...`, "success");
 
     try {
       const res = await fetch(`/api/playlists/${playlist.id}`);
+      if (!res.ok) {
+        throw new Error("Failed to load playlist");
+      }
       const data = await res.json();
       const songs: PlaylistSong[] = data.songs || [];
 
@@ -665,6 +670,29 @@ export default function MusicPage() {
     } catch (error) {
       console.error("Failed to play playlist:", error);
       showToast("Failed to load playlist", "error");
+    }
+  };
+
+  const handlePlaySongFromPlaylist = async (song: PlaylistSong) => {
+    if (!selectedChannel) {
+      showToast("Please select a voice channel first", "error");
+      return;
+    }
+    try {
+      const result = await musicPlay(
+        selectedChannel,
+        song.youtube_url,
+        discordUserId ?? "web",
+        session?.user?.user_metadata?.full_name ?? "Web Player",
+      );
+      if (result.error) {
+        showToast(`⚠️ Song playback failed due to YouTube restrictions`, "error");
+      } else {
+        showToast(`Playing ${song.song_title}`, "success");
+        startTransition(currentSongUrlRef.current);
+      }
+    } catch (error) {
+      showToast("Failed to play song. Please try another.", "error");
     }
   };
 
@@ -933,67 +961,105 @@ export default function MusicPage() {
             <p className="text-xs uppercase tracking-widest text-muted-foreground font-medium mb-4">
               Your Playlists
             </p>
-
-            {/* Playlists horizontal scroll */}
-            <div className="flex gap-3 overflow-x-auto pb-4 mb-6 scrollbar-hide">
-              {playlists.slice(0, 10).map((playlist) => (
-                <button
+            
+            {/* Playlists grid - matching video card style */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8"
+            >
+              {playlists.slice(0, 12).map((playlist) => (
+                <motion.div
                   key={playlist.id}
-                  onClick={() => {
-                    setSelectedPlaylistForView(playlist);
-                    handleViewPlaylist(playlist);
-                    setPlaylistPanelOpen(true);
-                  }}
-                  className="shrink-0 w-44 group"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="group"
                 >
-                  <div className="relative aspect-video bg-gradient-to-br from-primary/20 to-primary/5 rounded-xl overflow-hidden border border-white/10 mb-2 flex items-center justify-center">
-                    {/* Playlist icon overlay */}
-                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                      <svg
-                        className="h-12 w-12 text-white/80"
-                        fill="currentColor"
+                  <button
+                    onClick={() => handlePlayPlaylist(playlist, true)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      setSelectedPlaylistForView(playlist);
+                      handleViewPlaylist(playlist);
+                      setPlaylistPanelOpen(true);
+                    }}
+                    className="w-full text-left rounded-xl overflow-hidden border border-border/40 hover:border-primary/40 bg-card hover:bg-muted/30 transition-all duration-200 shadow-sm hover:shadow-md"
+                  >
+                    {/* Playlist card header */}
+                    <div className="relative aspect-video bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center group-hover:from-primary/20 group-hover:via-primary/10 transition-all duration-300">
+                      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_120%,rgba(120,119,198,0.05),rgba(255,255,255,0))]" />
+                      <svg 
+                        className="h-14 w-14 text-primary/40 group-hover:text-primary/60 transition-colors duration-300" 
+                        fill="currentColor" 
                         viewBox="0 0 20 20"
                       >
                         <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
                       </svg>
+                      
+                      {/* Top badges */}
+                      <div className="absolute top-2 left-2 right-2 flex items-start justify-between">
+                        {playlist.is_locked && (
+                          <div className="px-2 py-1 bg-background/90 backdrop-blur-sm rounded-md border border-border/50">
+                            <svg className="h-3 w-3 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
+                            </svg>
+                          </div>
+                        )}
+                        <div className="ml-auto px-2 py-1 bg-background/90 backdrop-blur-sm rounded-md border border-border/50 flex items-center gap-1.5">
+                          <svg className="h-3 w-3 text-muted-foreground" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
+                          </svg>
+                          <span className="text-[10px] font-semibold text-foreground">
+                            {playlist.song_count}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Play button overlay on hover */}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                        <motion.div 
+                          initial={{ scale: 0.8 }}
+                          whileHover={{ scale: 1.1 }}
+                          className="p-3 bg-primary rounded-full shadow-lg"
+                        >
+                          <svg className="h-6 w-6 text-primary-foreground" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" />
+                          </svg>
+                        </motion.div>
+                      </div>
                     </div>
-                    {/* Playlist badge */}
-                    <div className="absolute top-2 right-2 px-2 py-1 bg-black/70 backdrop-blur-sm rounded-md flex items-center gap-1.5">
-                      <svg
-                        className="h-3 w-3 text-white"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
-                      </svg>
-                      <span className="text-[10px] font-semibold text-white">
-                        {playlist.song_count}
-                      </span>
+                    
+                    {/* Playlist info */}
+                    <div className="p-2.5">
+                      <p className="text-xs font-medium leading-tight line-clamp-2 group-hover:text-primary transition-colors">
+                        {playlist.name}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1">
+                        <span>Playlist</span>
+                        <span>•</span>
+                        <span>{playlist.song_count} song{playlist.song_count !== 1 ? 's' : ''}</span>
+                      </p>
                     </div>
-                    {playlist.is_locked && (
-                      <svg
-                        className="absolute top-2 left-2 h-3.5 w-3.5 text-white/70"
-                        fill="currentColor"
-                        viewBox="0 0 20 20"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                  <p className="text-xs font-medium leading-tight line-clamp-2 text-left group-hover:text-primary transition-colors">
-                    {playlist.name}
-                  </p>
-                  <p className="text-[10px] text-muted-foreground mt-0.5 truncate text-left">
-                    {playlist.song_count} song
-                    {playlist.song_count !== 1 ? "s" : ""}
-                  </p>
-                </button>
+                  </button>
+                  
+                  {/* Manage button - right click hint */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedPlaylistForView(playlist);
+                      handleViewPlaylist(playlist);
+                      setPlaylistPanelOpen(true);
+                    }}
+                    className="mt-1.5 w-full text-[10px] text-muted-foreground hover:text-foreground transition-colors py-1.5 px-2 rounded-lg hover:bg-muted/50 flex items-center justify-center gap-1.5 opacity-0 group-hover:opacity-100"
+                  >
+                    <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                    </svg>
+                    <span>Manage</span>
+                  </button>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           </>
         )}
 
@@ -1731,57 +1797,115 @@ export default function MusicPage() {
                         </div>
                       ) : (
                         <div className="space-y-2">
-                          {playlistSongs.map((song, index) => (
-                            <div
-                              key={song.id}
-                              className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-                            >
-                              <span className="text-xs text-muted-foreground w-6">
-                                {index + 1}
-                              </span>
-                              <img
-                                src={song.song_thumbnail}
-                                alt={song.song_title}
-                                className="w-12 h-12 rounded object-cover"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">
-                                  {song.song_title}
-                                </p>
-                                <p className="text-xs text-muted-foreground truncate">
-                                  {song.song_channel} • {song.song_duration}
-                                </p>
-                                <p className="text-[10px] text-muted-foreground/60">
-                                  Added by {song.adder_name || song.added_by}
-                                </p>
-                              </div>
-                              {(!selectedPlaylistForView.is_locked ||
-                                selectedPlaylistForView.created_by ===
-                                  discordUserId ||
-                                song.added_by === discordUserId) && (
-                                <button
-                                  onClick={() =>
-                                    handleRemoveFromPlaylist(song.id)
-                                  }
-                                  className="p-2 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors"
-                                >
-                                  <svg
-                                    className="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
+                          {playlistSongs.map((song, index) => {
+                            const isCurrentlyPlaying = status?.song?.url?.includes(song.youtube_url);
+                            const canRemove = !selectedPlaylistForView.is_locked ||
+                              selectedPlaylistForView.created_by === discordUserId ||
+                              song.added_by === discordUserId;
+                            
+                            return (
+                              <motion.div
+                                key={song.id}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: index * 0.02 }}
+                                className="group"
+                              >
+                                <div className={`flex items-center gap-3 p-3 rounded-lg transition-all duration-200 ${
+                                  isCurrentlyPlaying 
+                                    ? 'bg-primary/10 border border-primary/40' 
+                                    : 'bg-muted/30 hover:bg-muted/50 border border-transparent hover:border-border/50'
+                                }`}>
+                                  <span className="text-xs text-muted-foreground w-6 shrink-0">
+                                    {index + 1}
+                                  </span>
+                                  <button
+                                    onClick={() => handlePlaySongFromPlaylist(song)}
+                                    className="relative shrink-0 group/play"
                                   >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                    <img
+                                      src={song.song_thumbnail}
+                                      alt={song.song_title}
+                                      className="w-12 h-12 rounded object-cover"
                                     />
-                                  </svg>
-                                </button>
-                              )}
-                            </div>
-                          ))}
+                                    <div className="absolute inset-0 bg-black/0 group-hover/play:bg-black/60 transition-all duration-200 rounded flex items-center justify-center">
+                                      <svg 
+                                        className="h-6 w-6 text-white opacity-0 group-hover/play:opacity-100 transition-opacity duration-200" 
+                                        fill="currentColor" 
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M8 5v14l11-7z" />
+                                      </svg>
+                                    </div>
+                                    {isCurrentlyPlaying && (
+                                      <div className="absolute -top-0.5 -right-0.5 flex gap-0.5 items-end h-4">
+                                        {[0, 150, 75].map((d, i) => (
+                                          <motion.div
+                                            key={i}
+                                            className="w-1 bg-primary rounded-full"
+                                            animate={{ height: ['4px', '14px', '4px'] }}
+                                            transition={{ repeat: Infinity, duration: 0.8, delay: d / 1000 }}
+                                          />
+                                        ))}
+                                      </div>
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => handlePlaySongFromPlaylist(song)}
+                                    className="flex-1 min-w-0 text-left"
+                                  >
+                                    <p className={`text-sm font-medium truncate transition-colors ${
+                                      isCurrentlyPlaying ? 'text-primary' : 'group-hover:text-foreground'
+                                    }`}>
+                                      {song.song_title}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground truncate">
+                                      {song.song_channel} • {song.song_duration}
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground/60">
+                                      Added by {song.adder_name || song.added_by}
+                                    </p>
+                                  </button>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <button
+                                      onClick={() => handlePlaySongFromPlaylist(song)}
+                                      className="p-2 hover:bg-primary/10 hover:text-primary rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                      title="Play now"
+                                    >
+                                      <svg
+                                        className="h-4 w-4"
+                                        fill="currentColor"
+                                        viewBox="0 0 24 24"
+                                      >
+                                        <path d="M8 5v14l11-7z" />
+                                      </svg>
+                                    </button>
+                                    {canRemove && (
+                                      <button
+                                        onClick={() => handleRemoveFromPlaylist(song.id)}
+                                        className="p-2 hover:bg-destructive/10 hover:text-destructive rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                                        title="Remove from playlist"
+                                      >
+                                        <svg
+                                          className="h-4 w-4"
+                                          fill="none"
+                                          viewBox="0 0 24 24"
+                                          stroke="currentColor"
+                                        >
+                                          <path
+                                            strokeLinecap="round"
+                                            strokeLinejoin="round"
+                                            strokeWidth={2}
+                                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                          />
+                                        </svg>
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
