@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 
 export async function DELETE(
@@ -21,7 +21,7 @@ export async function DELETE(
     }
 
     const { id: playlistId, songId } = await params;
-    const supabase = createClient();
+    const supabase = await createServerSupabaseClient();
 
     const { data: playlist, error: playlistError } = await supabase
       .from("music_playlists")

@@ -1,4 +1,4 @@
-import { createClient } from "./supabase";
+import { createClient, createServerSupabaseClient } from "./supabase";
 
 export async function signInWithDiscord() {
   const supabase = createClient();
@@ -30,7 +30,7 @@ export async function getUser() {
 }
 
 export async function getSession() {
-  const supabase = createClient();
+  const supabase = await createServerSupabaseClient();
   const {
     data: { session },
     error,

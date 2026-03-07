@@ -145,7 +145,6 @@ export default function AdminPage() {
     });
   }, [checkRole, fetchUserStatus]);
 
-  // WS live sync for verification updates
   useEffect(() => {
     const socket = new BotSocket();
     botSocket.current = socket;
@@ -165,6 +164,15 @@ export default function AdminPage() {
       botSocket.current = null;
     };
   }, []);
+
+  useEffect(() => {
+    if (!isModerator || !currentUserId) return;
+    const interval = setInterval(() => {
+      fetchPendingRequests();
+      fetchUserStatus(currentUserId);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [isModerator, currentUserId, fetchPendingRequests, fetchUserStatus]);
 
   const handleRefresh = async () => {
     setRefreshLoading(true);

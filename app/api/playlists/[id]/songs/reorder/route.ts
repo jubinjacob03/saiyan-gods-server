@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 
 export async function PUT(
@@ -31,7 +31,7 @@ export async function PUT(
       );
     }
 
-    const supabase = createClient();
+    const supabase = await createServerSupabaseClient();
 
     const { data: playlist, error: playlistError } = await supabase
       .from("music_playlists")

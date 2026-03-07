@@ -179,18 +179,27 @@ export default function MusicPage() {
     getSession().then(setSession);
   }, []);
 
-  useEffect(() => {
+  const fetchVoiceChannels = useCallback(async () => {
     if (!GUILD_ID) return;
-    fetch("/api/bot/channels")
-      .then((r) => r.json())
-      .then((d) => {
-        const vcs: VoiceChannel[] = d?.data ?? [];
-        setChannels(vcs);
-        const lobby = vcs.find((c) => c.name.toLowerCase().includes("lobby"));
-        setSelectedChannel(lobby?.id ?? vcs[0]?.id ?? "");
-      })
-      .catch(() => {});
+    try {
+      const r = await fetch("/api/bot/channels");
+      const d = await r.json();
+      const vcs: VoiceChannel[] = d?.data ?? [];
+      setChannels((prev) => {
+        if (prev.length === 0) {
+          const lobby = vcs.find((c) => c.name.toLowerCase().includes("lobby"));
+          setSelectedChannel(lobby?.id ?? vcs[0]?.id ?? "");
+        }
+        return vcs;
+      });
+    } catch {}
   }, []);
+
+  useEffect(() => {
+    fetchVoiceChannels();
+    const interval = setInterval(fetchVoiceChannels, 10000);
+    return () => clearInterval(interval);
+  }, [fetchVoiceChannels]);
 
   useEffect(() => {
     if (!discordUserId || channels.length === 0) return;
@@ -315,9 +324,21 @@ export default function MusicPage() {
       .finally(() => setLoadingVideos(false));
   }, [debouncedQuery]);
 
+  const fetchPlaylists = useCallback(async () => {
+    try {
+      const res = await fetch("/api/playlists");
+      const data = await res.json();
+      setPlaylists(data.playlists || []);
+    } catch (error) {
+      console.error("Failed to fetch playlists:", error);
+    }
+  }, []);
+
   useEffect(() => {
     fetchPlaylists();
-  }, []);
+    const interval = setInterval(fetchPlaylists, 10000);
+    return () => clearInterval(interval);
+  }, [fetchPlaylists]);
 
   useEffect(() => {
     const handleClickOutside = () => setContextMenu(null);
@@ -326,16 +347,6 @@ export default function MusicPage() {
       return () => document.removeEventListener("click", handleClickOutside);
     }
   }, [contextMenu]);
-
-  const fetchPlaylists = async () => {
-    try {
-      const res = await fetch("/api/playlists");
-      const data = await res.json();
-      setPlaylists(data.playlists || []);
-    } catch (error) {
-      console.error("Failed to fetch playlists:", error);
-    }
-  };
 
   const handleCreatePlaylist = async () => {
     const name = newPlaylistName.trim();

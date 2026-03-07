@@ -289,11 +289,15 @@ export default function PrivateVCPage() {
     fetchMembers();
   }, [fetchVCs, fetchMembers]);
 
-  // Auto-refresh every 15s
   useEffect(() => {
     const interval = setInterval(fetchVCs, 15000);
     return () => clearInterval(interval);
   }, [fetchVCs]);
+
+  useEffect(() => {
+    const interval = setInterval(fetchMembers, 30000);
+    return () => clearInterval(interval);
+  }, [fetchMembers]);
 
   const handleCreate = async (memberIds: string[]) => {
     if (!currentUserId) return;

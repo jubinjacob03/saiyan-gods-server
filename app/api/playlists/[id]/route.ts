@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase";
+import { createServerSupabaseClient } from "@/lib/supabase";
 import { getSession } from "@/lib/auth";
 
 const OWNER_ROLE_ID = "1473075468088377352";
@@ -10,7 +10,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = createClient();
+    const supabase = await createServerSupabaseClient();
 
     const { data: playlist, error: playlistError } = await supabase
       .from("music_playlists")
@@ -60,7 +60,7 @@ export async function PUT(
     const body = await request.json();
     const { name, is_locked } = body;
 
-    const supabase = createClient();
+    const supabase = await createServerSupabaseClient();
 
     const { data: playlist, error: fetchError } = await supabase
       .from("music_playlists")
@@ -122,7 +122,7 @@ export async function DELETE(
     }
 
     const { id } = await params;
-    const supabase = createClient();
+    const supabase = await createServerSupabaseClient();
 
     const { data: playlist, error: fetchError } = await supabase
       .from("music_playlists")
