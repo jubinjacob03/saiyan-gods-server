@@ -67,12 +67,6 @@ export default function AdminPage() {
 
   const [refreshLoading, setRefreshLoading] = useState(false);
   const [setupLoading, setSetupLoading] = useState(false);
-  const [migrateLoading, setMigrateLoading] = useState(false);
-  const [migrationResult, setMigrationResult] = useState<{
-    total: number;
-    successful: number;
-    failed: number;
-  } | null>(null);
   const [applyLoading, setApplyLoading] = useState<string | null>(null);
   const [approveLoading, setApproveLoading] = useState<string | null>(null);
   const [rejectLoading, setRejectLoading] = useState<string | null>(null);
@@ -214,32 +208,6 @@ export default function AdminPage() {
       showToast("Network error", "error");
     } finally {
       setSetupLoading(false);
-    }
-  };
-
-  const handleMigrateCache = async () => {
-    if (!isModerator) return;
-    setMigrateLoading(true);
-    setMigrationResult(null);
-    showToast("Migration started... This may take a while.", "success");
-    try {
-      const res = await fetch("/api/playlists/migrate-cache", {
-        method: "POST",
-      });
-      const json = await res.json();
-      if (res.ok) {
-        setMigrationResult(json);
-        showToast(
-          `Migration complete! ${json.successful}/${json.total} songs cached.`,
-          json.failed > 0 ? "error" : "success",
-        );
-      } else {
-        showToast(json.error || "Migration failed", "error");
-      }
-    } catch {
-      showToast("Network error", "error");
-    } finally {
-      setMigrateLoading(false);
     }
   };
 
@@ -613,131 +581,7 @@ export default function AdminPage() {
             </Card>
           </motion.div>
 
-          {/* Card 3 — Migrate Playlist Cache */}
-          <motion.div variants={item}>
-            <Card
-              className={`h-full ${
-                !isRoleLoading && !isModerator ? "opacity-70" : ""
-              }`}
-            >
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  <div
-                    className={`${designTokens.iconContainer} ${
-                      isModerator
-                        ? designTokens.iconBackgrounds.blue
-                        : designTokens.iconBackgrounds.muted
-                    }`}
-                  >
-                    <svg
-                      className={`${designTokens.icons.md} ${
-                        isModerator
-                          ? "text-blue-500"
-                          : "text-muted-foreground"
-                      }`}
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                      />
-                    </svg>
-                  </div>
-                  <div>
-                    <CardTitle>Migrate Playlist Cache</CardTitle>
-                    <CardDescription className="mt-0.5">
-                      Moderator+ only
-                    </CardDescription>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  Downloads all existing playlist songs to Supabase cache. Run
-                  this once after enabling the new caching system.
-                </p>
-                {!isRoleLoading && !isModerator && (
-                  <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-xs text-muted-foreground">
-                    <svg
-                      className="w-3.5 h-3.5 flex-shrink-0"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                      strokeWidth={2}
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"
-                      />
-                    </svg>
-                    Requires Moderator or higher role
-                  </div>
-                )}
-                {migrationResult && (
-                  <div className="p-3 rounded-lg bg-muted/30 text-xs space-y-1">
-                    <div className="flex justify-between">
-                      <span className="text-muted-foreground">Total songs:</span>
-                      <span className="font-medium">{migrationResult.total}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-green-600">Successful:</span>
-                      <span className="font-medium text-green-600">
-                        {migrationResult.successful}
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-destructive">Failed:</span>
-                      <span className="font-medium text-destructive">
-                        {migrationResult.failed}
-                      </span>
-                    </div>
-                  </div>
-                )}
-                <Button
-                  onClick={handleMigrateCache}
-                  disabled={migrateLoading || isRoleLoading || !isModerator}
-                  variant={isModerator ? "default" : "outline"}
-                  className="w-full"
-                >
-                  {isRoleLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
-                      Checking permissions...
-                    </>
-                  ) : migrateLoading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                      Migrating... (may take several minutes)
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        className={`${designTokens.icons.sm} mr-1.5`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                        />
-                      </svg>
-                      Start Migration
-                    </>
-                  )}
-                </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
-
-          {/* Card 4 — Verification (all members) */}
+          {/* Card 3 — Verification (all members) */}
           <motion.div variants={item}>
             <Card className="h-full">
               <CardHeader>
@@ -868,7 +712,7 @@ export default function AdminPage() {
             </Card>
           </motion.div>
 
-          {/* Card 5 — Approvals (mod+ only) */}
+          {/* Card 4 — Approvals (mod+ only) */}
           {!isRoleLoading && isModerator && (
             <motion.div variants={item}>
               <Card className="h-full">
