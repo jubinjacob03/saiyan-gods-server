@@ -4,7 +4,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const response = await fetch(
-      `${process.env.BOT_API_URL}/api/music/control`,
+      `${process.env.MUSIC_BOT_API_URL}/api/music/control`,
       {
         method: "POST",
         headers: {

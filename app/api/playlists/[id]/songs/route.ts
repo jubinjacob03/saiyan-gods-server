@@ -95,7 +95,7 @@ export async function POST(
 
     if (songError) throw songError;
 
-    fetch(`${process.env.BOT_API_URL}/cache-song`, {
+    fetch(`${process.env.MUSIC_BOT_API_URL}/cache-song`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${process.env.BOT_API_KEY}`,

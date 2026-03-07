@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BOT_URL = process.env.BOT_API_URL!;
+const BOT_URL = process.env.MUSIC_BOT_API_URL!;
 const BOT_KEY = process.env.BOT_API_KEY!;
 
 // Handles all direct-action music endpoints: /skip /pause /resume /toggle

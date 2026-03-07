@@ -227,31 +227,31 @@ export default function SettingsPage() {
       showToast("Only owners can run migration", "error");
       return;
     }
-    
+
     console.log("[Migration] Starting playlist cache migration...");
     setMigrateLoading(true);
     setMigrationResult(null);
     showToast("Migration started... This may take several minutes.", "success");
-    
+
     try {
       console.log("[Migration] Calling /api/playlists/migrate-cache");
       const res = await fetch("/api/playlists/migrate-cache", {
         method: "POST",
       });
-      
+
       console.log(`[Migration] Response status: ${res.status}`);
       const json = await res.json();
       console.log("[Migration] Response data:", json);
-      
+
       if (res.ok) {
         setMigrationResult(json);
         const message = `Migration complete! ${json.successful}/${json.total} songs cached successfully.`;
         console.log(`[Migration] ${message}`);
-        
+
         if (json.errors && json.errors.length > 0) {
           console.log("[Migration] Errors:", json.errors);
         }
-        
+
         showToast(message, json.failed > 0 ? "error" : "success");
       } else {
         console.error("[Migration] Failed:", json.error);
@@ -736,7 +736,9 @@ export default function SettingsPage() {
                     </p>
                     {migrationResult && (
                       <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 space-y-2">
-                        <p className="text-sm font-medium">Migration Results:</p>
+                        <p className="text-sm font-medium">
+                          Migration Results:
+                        </p>
                         <div className="grid grid-cols-3 gap-4 text-sm">
                           <div>
                             <p className="text-muted-foreground">Total</p>
@@ -757,20 +759,26 @@ export default function SettingsPage() {
                             </p>
                           </div>
                         </div>
-                        {migrationResult.errors && migrationResult.errors.length > 0 && (
-                          <details className="mt-3">
-                            <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
-                              View errors ({migrationResult.errors.length})
-                            </summary>
-                            <div className="mt-2 max-h-40 overflow-y-auto">
-                              {migrationResult.errors.slice(0, 10).map((err, i) => (
-                                <p key={i} className="text-xs text-destructive font-mono mt-1">
-                                  {err}
-                                </p>
-                              ))}
-                            </div>
-                          </details>
-                        )}
+                        {migrationResult.errors &&
+                          migrationResult.errors.length > 0 && (
+                            <details className="mt-3">
+                              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
+                                View errors ({migrationResult.errors.length})
+                              </summary>
+                              <div className="mt-2 max-h-40 overflow-y-auto">
+                                {migrationResult.errors
+                                  .slice(0, 10)
+                                  .map((err, i) => (
+                                    <p
+                                      key={i}
+                                      className="text-xs text-destructive font-mono mt-1"
+                                    >
+                                      {err}
+                                    </p>
+                                  ))}
+                              </div>
+                            </details>
+                          )}
                       </div>
                     )}
                     <motion.div

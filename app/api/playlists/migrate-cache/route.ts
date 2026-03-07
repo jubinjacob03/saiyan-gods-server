@@ -32,7 +32,14 @@ export async function POST(request: NextRequest) {
       );
 
       try {
-        const response = await fetch(`${process.env.BOT_API_URL}/cache-song`, {
+        const botUrl = process.env.MUSIC_BOT_API_URL;
+        if (!botUrl) {
+          throw new Error("MUSIC_BOT_API_URL not configured");
+        }
+
+        console.log(`[Migrate] Calling: ${botUrl}/cache-song`);
+
+        const response = await fetch(`${botUrl}/cache-song`, {
           method: "POST",
           headers: {
             Authorization: `Bearer ${process.env.BOT_API_KEY}`,
@@ -41,22 +48,32 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({ youtubeUrl: url }),
         });
 
-        const data = await response.json();
+        console.log(`[Migrate] Response status: ${response.status}`);
+
+        const data = await response
+          .json()
+          .catch(() => ({ error: "Invalid JSON response" }));
+        console.log(`[Migrate] Response data:`, data);
 
         if (response.ok) {
           results.successful++;
           console.log(`[Migrate] ✅ Cached: ${url.substring(0, 50)}...`);
         } else {
           results.failed++;
-          results.errors.push(`${url}: ${data.error || "Unknown error"}`);
-          console.error(`[Migrate] ❌ Failed: ${url} - ${data.error}`);
+          const errorMsg =
+            typeof data.error === "string"
+              ? data.error
+              : JSON.stringify(data.error || data || "Unknown error");
+          results.errors.push(`${url}: ${errorMsg}`);
+          console.error(`[Migrate] ❌ Failed: ${url} - ${errorMsg}`);
         }
 
         await new Promise((resolve) => setTimeout(resolve, 1000));
       } catch (error: any) {
         results.failed++;
-        results.errors.push(`${url}: ${error.message}`);
-        console.error(`[Migrate] ❌ Error: ${url} - ${error.message}`);
+        const errorMsg = error.message || String(error);
+        results.errors.push(`${url}: ${errorMsg}`);
+        console.error(`[Migrate] ❌ Exception: ${url} - ${errorMsg}`);
       }
     }
 

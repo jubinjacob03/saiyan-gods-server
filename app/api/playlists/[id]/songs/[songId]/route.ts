@@ -67,7 +67,7 @@ export async function DELETE(
 
     if (deleteError) throw deleteError;
 
-    fetch(`${process.env.BOT_API_URL}/delete-cache`, {
+    fetch(`${process.env.MUSIC_BOT_API_URL}/delete-cache`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${process.env.BOT_API_KEY}`,
