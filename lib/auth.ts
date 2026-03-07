@@ -1,4 +1,5 @@
-import { createClient, createServerSupabaseClient } from "./supabase";
+import { createClient } from "./supabase";
+import { createServerSupabaseClient } from "./supabase-server";
 
 export async function signInWithDiscord() {
   const supabase = createClient();
