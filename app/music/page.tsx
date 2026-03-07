@@ -1076,7 +1076,7 @@ export default function MusicPage() {
                     className="w-full text-left rounded-xl overflow-hidden border border-border/40 hover:border-primary/40 bg-card hover:bg-muted/30 transition-all duration-200 shadow-sm hover:shadow-md"
                   >
                     {/* Playlist card header */}
-                    <div className="relative aspect-video bg-gradient-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center group-hover:from-primary/20 group-hover:via-primary/10 transition-all duration-300 overflow-hidden">
+                    <div className="relative aspect-video bg-linear-to-br from-primary/10 via-primary/5 to-transparent flex items-center justify-center group-hover:from-primary/20 group-hover:via-primary/10 transition-all duration-300 overflow-hidden">
                       {playlist.thumbnail ? (
                         <>
                           <img
@@ -1084,7 +1084,7 @@ export default function MusicPage() {
                             alt={playlist.name}
                             className="w-full h-full object-cover"
                           />
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent" />
+                          <div className="absolute inset-0 bg-linear-to-t from-black/60 via-black/20 to-transparent" />
                         </>
                       ) : (
                         <>

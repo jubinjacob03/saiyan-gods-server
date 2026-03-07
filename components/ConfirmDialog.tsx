@@ -107,7 +107,7 @@ export default function ConfirmDialog({
                 <Button
                   onClick={onClose}
                   variant="outline"
-                  className="min-w-[100px]"
+                  className="min-w-25"
                 >
                   {cancelText}
                 </Button>
@@ -117,7 +117,7 @@ export default function ConfirmDialog({
                     onClose();
                   }}
                   variant={variant === "danger" ? "destructive" : "default"}
-                  className="min-w-[100px]"
+                  className="min-w-25"
                 >
                   {confirmText}
                 </Button>

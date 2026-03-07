@@ -19,18 +19,18 @@ export async function POST(request: NextRequest) {
     console.log(`[Migrate] Found ${uniqueUrls.length} unique songs to cache`);
 
     // Verify zyra bot is reachable
-    const botUrl = process.env.MUSIC_BOT_API_URL;
+    const botUrl = process.env.BOT_API_URL;
     if (!botUrl) {
       return NextResponse.json(
-        { error: "MUSIC_BOT_API_URL not configured" },
+        { error: "BOT_API_URL not configured" },
         { status: 500 },
       );
     }
 
     console.log(`[Migrate] Testing connection to: ${botUrl}`);
     try {
-      const healthCheck = await fetch(`${botUrl}/health`, {
-        headers: { Authorization: `Bearer ${process.env.MUSIC_BOT_API_KEY}` },
+      const healthCheck = await fetch(`${botUrl}/api/music/health`, {
+        headers: { Authorization: `Bearer ${process.env.BOT_API_KEY}` },
       });
       const healthData = await healthCheck.json().catch(() => ({}));
       console.log(`[Migrate] Health check response:`, healthData);
@@ -69,12 +69,12 @@ export async function POST(request: NextRequest) {
       );
 
       try {
-        console.log(`[Migrate] Calling: ${botUrl}/cache-song`);
+        console.log(`[Migrate] Calling: ${botUrl}/api/music/cache-song`);
 
-        const response = await fetch(`${botUrl}/cache-song`, {
+        const response = await fetch(`${botUrl}/api/music/cache-song`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.MUSIC_BOT_API_KEY}`,
+            Authorization: `Bearer ${process.env.BOT_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ youtubeUrl: url }),

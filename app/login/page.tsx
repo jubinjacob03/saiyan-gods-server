@@ -44,7 +44,7 @@ function LoginContent() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/20 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-background to-muted/20 p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -86,7 +86,7 @@ function LoginContent() {
                 >
                   <div className="flex items-start gap-3">
                     <svg
-                      className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5"
+                      className="h-5 w-5 text-destructive shrink-0 mt-0.5"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"

@@ -68,13 +68,6 @@ export default function SettingsPage() {
   const [clearDialogOpen, setClearDialogOpen] = useState(false);
   const [clearing, setClearing] = useState(false);
   const [clearDone, setClearDone] = useState(false);
-  const [migrateLoading, setMigrateLoading] = useState(false);
-  const [migrationResult, setMigrationResult] = useState<{
-    total: number;
-    successful: number;
-    failed: number;
-    errors?: string[];
-  } | null>(null);
   const [toast, setToast] = useState<{
     msg: string;
     type: "success" | "error";
@@ -218,51 +211,6 @@ export default function SettingsPage() {
     } finally {
       setClearing(false);
       setClearDialogOpen(false);
-    }
-  };
-
-  const handleMigrateCache = async () => {
-    if (!isOwner) {
-      console.log("[Migration] Access denied - not owner");
-      showToast("Only owners can run migration", "error");
-      return;
-    }
-
-    console.log("[Migration] Starting playlist cache migration...");
-    setMigrateLoading(true);
-    setMigrationResult(null);
-    showToast("Migration started... This may take several minutes.", "success");
-
-    try {
-      console.log("[Migration] Calling /api/playlists/migrate-cache");
-      const res = await fetch("/api/playlists/migrate-cache", {
-        method: "POST",
-      });
-
-      console.log(`[Migration] Response status: ${res.status}`);
-      const json = await res.json();
-      console.log("[Migration] Response data:", json);
-
-      if (res.ok) {
-        setMigrationResult(json);
-        const message = `Migration complete! ${json.successful}/${json.total} songs cached successfully.`;
-        console.log(`[Migration] ${message}`);
-
-        if (json.errors && json.errors.length > 0) {
-          console.log("[Migration] Errors:", json.errors);
-        }
-
-        showToast(message, json.failed > 0 ? "error" : "success");
-      } else {
-        console.error("[Migration] Failed:", json.error);
-        showToast(json.error || "Migration failed", "error");
-      }
-    } catch (error) {
-      console.error("[Migration] Network error:", error);
-      showToast("Network error during migration", "error");
-    } finally {
-      setMigrateLoading(false);
-      console.log("[Migration] Process complete");
     }
   };
 
@@ -693,154 +641,8 @@ export default function SettingsPage() {
             </Card>
           </motion.div>
 
-          {/* Playlist Cache Migration - owner only */}
-          {isOwner === true && (
-            <motion.div variants={item}>
-              <Card className="border-blue-500/20 shadow-lg">
-                <CardHeader className="pb-6">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`${designTokens.iconContainer} ${designTokens.iconBackgrounds.blue}`}
-                    >
-                      <svg
-                        className={`${designTokens.icons.md} text-blue-500`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                        />
-                      </svg>
-                    </div>
-                    <div>
-                      <CardTitle className={designTokens.typography.h2}>
-                        Playlist Cache Migration
-                      </CardTitle>
-                      <CardDescription
-                        className={`${designTokens.typography.smallMuted} mt-1`}
-                      >
-                        Owner only - One-time setup
-                      </CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    <p className={designTokens.typography.body}>
-                      Downloads all existing playlist songs to Supabase cache.
-                      Run this once after enabling the new caching system.
-                    </p>
-                    {migrationResult && (
-                      <div className="p-4 rounded-xl border border-blue-500/20 bg-blue-500/5 space-y-2">
-                        <p className="text-sm font-medium">
-                          Migration Results:
-                        </p>
-                        <div className="grid grid-cols-3 gap-4 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">Total</p>
-                            <p className="text-xl font-bold">
-                              {migrationResult.total}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-green-600">Successful</p>
-                            <p className="text-xl font-bold text-green-600">
-                              {migrationResult.successful}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-destructive">Failed</p>
-                            <p className="text-xl font-bold text-destructive">
-                              {migrationResult.failed}
-                            </p>
-                          </div>
-                        </div>
-                        {migrationResult.errors &&
-                          migrationResult.errors.length > 0 && (
-                            <details className="mt-3">
-                              <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground">
-                                View errors ({migrationResult.errors.length})
-                              </summary>
-                              <div className="mt-2 max-h-40 overflow-y-auto">
-                                {migrationResult.errors
-                                  .slice(0, 10)
-                                  .map((err, i) => (
-                                    <p
-                                      key={i}
-                                      className="text-xs text-destructive font-mono mt-1"
-                                    >
-                                      {err}
-                                    </p>
-                                  ))}
-                              </div>
-                            </details>
-                          )}
-                      </div>
-                    )}
-                    <motion.div
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <Button
-                        onClick={handleMigrateCache}
-                        disabled={migrateLoading}
-                        className="w-full bg-blue-500 hover:bg-blue-600"
-                      >
-                        {migrateLoading ? (
-                          <span className="flex items-center gap-2">
-                            <svg
-                              className="animate-spin h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                            >
-                              <circle
-                                className="opacity-25"
-                                cx="12"
-                                cy="12"
-                                r="10"
-                                stroke="currentColor"
-                                strokeWidth="4"
-                              />
-                              <path
-                                className="opacity-75"
-                                fill="currentColor"
-                                d="M4 12a8 8 0 018-8v8H4z"
-                              />
-                            </svg>
-                            Migrating... (check console for progress)
-                          </span>
-                        ) : (
-                          <span className="flex items-center gap-2">
-                            <svg
-                              className="h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"
-                              />
-                            </svg>
-                            Start Migration
-                          </span>
-                        )}
-                      </Button>
-                    </motion.div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )}
-
           {/* Danger Zone — owner only */}
-          {isOwner === true && (
+          {isOwner && (
             <motion.div variants={item}>
               <Card className="border-red-500/20 shadow-lg">
                 <CardHeader className="pb-6">

@@ -527,7 +527,7 @@ export default function AdminPage() {
                 {!isRoleLoading && !isModerator && (
                   <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 text-xs text-muted-foreground">
                     <svg
-                      className="w-3.5 h-3.5 flex-shrink-0"
+                      className="w-3.5 h-3.5 shrink-0"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -620,7 +620,7 @@ export default function AdminPage() {
                 ) : userStatus.hasMember ? (
                   <div className="flex items-center gap-2 px-3 py-3 rounded-lg bg-green-500/10 border border-green-500/20">
                     <svg
-                      className="w-5 h-5 text-green-500 flex-shrink-0"
+                      className="w-5 h-5 text-green-500 shrink-0"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -645,7 +645,7 @@ export default function AdminPage() {
                   <>
                     {userStatus.hasPending ? (
                       <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm">
-                        <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse flex-shrink-0" />
+                        <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse shrink-0" />
                         <span className="text-yellow-600 dark:text-yellow-400 font-medium">
                           Pending {userStatus.pendingRole} request
                         </span>
@@ -780,7 +780,7 @@ export default function AdminPage() {
                             className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border"
                           >
                             {/* Avatar */}
-                            <div className="w-9 h-9 rounded-full bg-muted flex-shrink-0 overflow-hidden">
+                            <div className="w-9 h-9 rounded-full bg-muted shrink-0 overflow-hidden">
                               {req.avatar ? (
                                 // eslint-disable-next-line @next/next/no-img-element
                                 <img
@@ -819,7 +819,7 @@ export default function AdminPage() {
                             </div>
 
                             {/* Actions */}
-                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                            <div className="flex items-center gap-1.5 shrink-0">
                               <Button
                                 size="sm"
                                 className="h-7 px-2.5 bg-green-600 hover:bg-green-700 text-white text-xs"
