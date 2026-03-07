@@ -1,11 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient, getServerSession } from "@/lib/supabase-server";
+import {
+  createServerSupabaseClient,
+  getServerSession,
+} from "@/lib/supabase-server";
 
 const OWNER_ROLE_ID = "1473075468088377352";
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -32,14 +35,14 @@ export async function GET(
     console.error("[playlists/id] GET error:", error);
     return NextResponse.json(
       { error: "Failed to fetch playlist" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession();
@@ -51,7 +54,7 @@ export async function PUT(
     if (!discordUserId) {
       return NextResponse.json(
         { error: "Discord ID not found" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -72,7 +75,7 @@ export async function PUT(
     if (playlist.created_by !== discordUserId) {
       return NextResponse.json(
         { error: "Only the creator can modify this playlist" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -94,14 +97,14 @@ export async function PUT(
     console.error("[playlists/id] PUT error:", error);
     return NextResponse.json(
       { error: "Failed to update playlist" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession();
@@ -116,7 +119,7 @@ export async function DELETE(
     if (!discordUserId) {
       return NextResponse.json(
         { error: "Discord ID not found" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -132,10 +135,7 @@ export async function DELETE(
     if (fetchError) throw fetchError;
 
     if (!isOwner && playlist.created_by !== discordUserId) {
-      return NextResponse.json(
-        { error: "Permission denied" },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: "Permission denied" }, { status: 403 });
     }
 
     const { error: deleteError } = await supabase
@@ -150,7 +150,7 @@ export async function DELETE(
     console.error("[playlists/id] DELETE error:", error);
     return NextResponse.json(
       { error: "Failed to delete playlist" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

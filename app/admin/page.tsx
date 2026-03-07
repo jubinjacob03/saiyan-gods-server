@@ -134,8 +134,8 @@ export default function AdminPage() {
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (user) {
         const discordId =
-          user.identities?.find((i) => i.provider === "discord")
-            ?.identity_data?.sub ||
+          user.identities?.find((i) => i.provider === "discord")?.identity_data
+            ?.sub ||
           user.user_metadata?.provider_id ||
           user.id;
         setCurrentUserId(discordId);
@@ -222,9 +222,7 @@ export default function AdminPage() {
       });
       const json = await res.json();
       if (res.ok) {
-        showToast(
-          `Application submitted! Await moderator approval.`,
-        );
+        showToast(`Application submitted! Await moderator approval.`);
         await fetchUserStatus(currentUserId);
       } else {
         showToast(json.error || "Failed to apply", "error");
@@ -290,8 +288,9 @@ export default function AdminPage() {
   };
 
   const isRoleLoading = isModerator === null;
-  const isMemberRole =
-    approveModal?.requestedRole?.toLowerCase().includes("member");
+  const isMemberRole = approveModal?.requestedRole
+    ?.toLowerCase()
+    .includes("member");
 
   return (
     <AppLayout>
@@ -667,10 +666,7 @@ export default function AdminPage() {
                         </p>
                         <Button
                           onClick={() => handleApply("friends")}
-                          disabled={
-                            !!applyLoading ||
-                            userStatus.hasPending
-                          }
+                          disabled={!!applyLoading || userStatus.hasPending}
                           className="w-full"
                         >
                           {applyLoading === "friends" ? (
@@ -696,10 +692,7 @@ export default function AdminPage() {
                         </p>
                         <Button
                           onClick={() => handleApply("member")}
-                          disabled={
-                            !!applyLoading ||
-                            userStatus.hasPending
-                          }
+                          disabled={!!applyLoading || userStatus.hasPending}
                           className="w-full"
                         >
                           {applyLoading === "member" ? (
@@ -896,4 +889,3 @@ export default function AdminPage() {
     </AppLayout>
   );
 }
-

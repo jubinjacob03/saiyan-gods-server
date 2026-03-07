@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient, getServerSession } from "@/lib/supabase-server";
+import {
+  createServerSupabaseClient,
+  getServerSession,
+} from "@/lib/supabase-server";
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession();
@@ -15,18 +18,24 @@ export async function POST(
     if (!discordUserId) {
       return NextResponse.json(
         { error: "Discord ID not found" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     const { id: playlistId } = await params;
     const body = await request.json();
-    const { youtube_url, song_title, song_channel, song_thumbnail, song_duration } = body;
+    const {
+      youtube_url,
+      song_title,
+      song_channel,
+      song_thumbnail,
+      song_duration,
+    } = body;
 
     if (!youtube_url || !song_title) {
       return NextResponse.json(
         { error: "YouTube URL and title are required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -43,7 +52,7 @@ export async function POST(
     if (playlist.is_locked && playlist.created_by !== discordUserId) {
       return NextResponse.json(
         { error: "This playlist is locked" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -57,7 +66,7 @@ export async function POST(
     if (existingSong) {
       return NextResponse.json(
         { error: "Song already exists in this playlist" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -91,7 +100,7 @@ export async function POST(
     console.error("[playlists/id/songs] POST error:", error);
     return NextResponse.json(
       { error: "Failed to add song to playlist" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

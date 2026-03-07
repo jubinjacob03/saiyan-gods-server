@@ -1,9 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createServerSupabaseClient, getServerSession } from "@/lib/supabase-server";
+import {
+  createServerSupabaseClient,
+  getServerSession,
+} from "@/lib/supabase-server";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const session = await getServerSession();
@@ -15,7 +18,7 @@ export async function PUT(
     if (!discordUserId) {
       return NextResponse.json(
         { error: "Discord ID not found" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -26,7 +29,7 @@ export async function PUT(
     if (!Array.isArray(songs)) {
       return NextResponse.json(
         { error: "Invalid songs data" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -43,7 +46,7 @@ export async function PUT(
     if (playlist.is_locked && playlist.created_by !== discordUserId) {
       return NextResponse.json(
         { error: "This playlist is locked" },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -52,7 +55,7 @@ export async function PUT(
         .from("music_playlist_songs")
         .update({ position })
         .eq("id", id)
-        .eq("playlist_id", playlistId)
+        .eq("playlist_id", playlistId),
     );
 
     await Promise.all(updates);
@@ -62,7 +65,7 @@ export async function PUT(
     console.error("[playlists/id/songs/reorder] PUT error:", error);
     return NextResponse.json(
       { error: "Failed to reorder songs" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

@@ -43,7 +43,8 @@ export async function GET(request: NextRequest) {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const filtered = (searchData.items ?? []).filter(
-        (item: any) => !MIX_RE.test(item.snippet.title) && LYRIC_RE.test(item.snippet.title),
+        (item: any) =>
+          !MIX_RE.test(item.snippet.title) && LYRIC_RE.test(item.snippet.title),
       );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,7 +62,8 @@ export async function GET(request: NextRequest) {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const filtered = (trendData.items ?? []).filter(
-        (item: any) => !MIX_RE.test(item.snippet.title) && LYRIC_RE.test(item.snippet.title),
+        (item: any) =>
+          !MIX_RE.test(item.snippet.title) && LYRIC_RE.test(item.snippet.title),
       );
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
