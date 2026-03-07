@@ -25,15 +25,17 @@ export async function GET(request: NextRequest) {
   }
 
   const q = request.nextUrl.searchParams.get("q")?.trim() ?? "";
+  // Append "+ lyric video" to queries to reduce age-restricted content
+  const searchQuery = q ? `${q} + lyric video` : "";
 
   try {
     let videoIds: string[] = [];
     const snippets: Record<string, any> = {};
 
-    if (q) {
+    if (searchQuery) {
       const searchRes = await fetch(
         `${YT_BASE}/search?part=snippet&type=video&videoCategoryId=10` +
-          `&q=${encodeURIComponent(q)}&maxResults=24&key=${YT_KEY}`,
+          `&q=${encodeURIComponent(searchQuery)}&maxResults=24&key=${YT_KEY}`,
         { next: { revalidate: 60 } },
       );
       const searchData = await searchRes.json();
