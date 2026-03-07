@@ -98,7 +98,7 @@ export async function POST(
     fetch(`${process.env.MUSIC_BOT_API_URL}/cache-song`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${process.env.BOT_API_KEY}`,
+        Authorization: `Bearer ${process.env.MUSIC_BOT_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ youtubeUrl: youtube_url }),

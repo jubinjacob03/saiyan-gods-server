@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
         const response = await fetch(`${botUrl}/cache-song`, {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.BOT_API_KEY}`,
+            Authorization: `Bearer ${process.env.MUSIC_BOT_API_KEY}`,
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ youtubeUrl: url }),

@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.BOT_API_KEY}`,
+          Authorization: `Bearer ${process.env.MUSIC_BOT_API_KEY}`,
         },
         body: JSON.stringify(body),
       },

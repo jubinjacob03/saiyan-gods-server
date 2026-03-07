@@ -6,7 +6,7 @@ export async function GET(request: NextRequest) {
     const response = await fetch(
       `${process.env.MUSIC_BOT_API_URL}/api/music/status?guildId=${guildId}`,
       {
-        headers: { Authorization: `Bearer ${process.env.BOT_API_KEY}` },
+        headers: { Authorization: `Bearer ${process.env.MUSIC_BOT_API_KEY}` },
         cache: "no-store",
       },
     );

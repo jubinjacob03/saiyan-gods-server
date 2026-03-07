@@ -70,7 +70,7 @@ export async function DELETE(
     fetch(`${process.env.MUSIC_BOT_API_URL}/delete-cache`, {
       method: "DELETE",
       headers: {
-        Authorization: `Bearer ${process.env.BOT_API_KEY}`,
+        Authorization: `Bearer ${process.env.MUSIC_BOT_API_KEY}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ youtubeUrl: song.youtube_url }),
