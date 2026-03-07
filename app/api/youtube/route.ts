@@ -71,27 +71,40 @@ export async function GET(request: NextRequest) {
     if (!videoIds.length) return NextResponse.json({ videos: [] });
 
     const detailsRes = await fetch(
-      `${YT_BASE}/videos?part=contentDetails&id=${videoIds.join(",")}&key=${YT_KEY}`,
+      `${YT_BASE}/videos?part=contentDetails,status&id=${videoIds.join(",")}&key=${YT_KEY}`,
       { next: { revalidate: 3600 } },
     );
     const detailsData = await detailsRes.json();
 
     const durations: Record<string, string> = {};
+    const restrictedIds = new Set<string>();
+
     (detailsData.items ?? []).forEach((item: any) => {
       durations[item.id] = parseDuration(item.contentDetails.duration);
+
+      // Filter out age-restricted or non-embeddable videos
+      const hasAgeRestriction =
+        item.contentDetails?.contentRating?.ytRating === "ytAgeRestricted";
+      const isNotEmbeddable = item.status?.embeddable === false;
+
+      if (hasAgeRestriction || isNotEmbeddable) {
+        restrictedIds.add(item.id);
+      }
     });
 
-    const videos = videoIds.map((id) => ({
-      id,
-      title: snippets[id]?.title ?? "",
-      channel: snippets[id]?.channelTitle ?? "",
-      thumbnail:
-        snippets[id]?.thumbnails?.medium?.url ??
-        snippets[id]?.thumbnails?.default?.url ??
-        "",
-      duration: durations[id] ?? "0:00",
-      url: `https://www.youtube.com/watch?v=${id}`,
-    }));
+    const videos = videoIds
+      .filter((id) => !restrictedIds.has(id)) // Filter out restricted videos
+      .map((id) => ({
+        id,
+        title: snippets[id]?.title ?? "",
+        channel: snippets[id]?.channelTitle ?? "",
+        thumbnail:
+          snippets[id]?.thumbnails?.medium?.url ??
+          snippets[id]?.thumbnails?.default?.url ??
+          "",
+        duration: durations[id] ?? "0:00",
+        url: `https://www.youtube.com/watch?v=${id}`,
+      }));
 
     return NextResponse.json({ videos });
   } catch (err) {
