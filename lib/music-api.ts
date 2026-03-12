@@ -110,9 +110,10 @@ export const musicResume = () => cmd("resume", {});
 export const musicToggle = () => cmd("toggle", {});
 export const musicStop = () => cmd("stop", {});
 export const musicShuffle = () => cmd("shuffle", {});
-export const musicSeek = (secs: number) => cmd("seek", { value: secs });
+// Note: seek and filter not supported in yt-dlp implementation
+// export const musicSeek = (secs: number) => cmd("seek", { value: secs });
 export const musicRemove = (index: number) => cmd("remove", { value: index });
-export const musicFilter = (name: string) => cmd("filter", { value: name });
+// export const musicFilter = (name: string) => cmd("filter", { value: name });
 
 export function musicLoop(mode?: number) {
   return cmd("loop", mode !== undefined ? { value: mode } : {});
@@ -127,7 +128,7 @@ export function musicVolume(vol: number) {
 // ── Legacy generic control (kept so nothing breaks during rollout) ────────────
 
 export function musicControl(
-  action: "toggle" | "skip" | "stop" | "shuffle" | "loop" | "volume" | "seek",
+  action: "toggle" | "skip" | "stop" | "shuffle" | "loop" | "volume",
   value?: number,
 ): Promise<{ success?: boolean; error?: string }> {
   return fetch("/api/bot/music/control", {

@@ -4,7 +4,8 @@ const BOT_URL = process.env.BOT_API_URL!;
 const BOT_KEY = process.env.BOT_API_KEY!;
 
 // Handles all direct-action music endpoints: /skip /pause /resume /toggle
-// /stop /shuffle /loop /volume /seek /remove /filter /search /queue
+// /stop /shuffle /loop /volume /remove /search /queue
+// Note: seek and filter not supported in yt-dlp implementation
 // Static segments (play, control, status) take priority in Next.js App Router.
 
 export async function POST(
