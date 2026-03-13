@@ -44,11 +44,11 @@ export async function GET(request: NextRequest) {
     const data = await response.json();
 
     const videos = (data.results || []).map((item: any) => ({
-      id: item.url?.split("v=")[1] || item.url || "",
+      id: item.id || item.url?.split("v=")[1] || "",
       title: item.title || "",
       channel: item.author || "",
       thumbnail: item.thumbnail || "",
-      duration: parseDuration(item.duration || 0),
+      duration: parseDuration(item.duration || 0), // duration now in seconds from zyra
       url: item.url || "",
     }));
 
