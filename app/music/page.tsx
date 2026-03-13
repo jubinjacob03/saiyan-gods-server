@@ -318,7 +318,7 @@ export default function MusicPage() {
 
   useEffect(() => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
-    searchDebounce.current = setTimeout(() => setDebouncedQuery(query), 350);
+    searchDebounce.current = setTimeout(() => setDebouncedQuery(query), 600);
   }, [query]);
 
   useEffect(() => {
@@ -331,7 +331,7 @@ export default function MusicPage() {
       .then((r) => r.json())
       .then((d) => {
         if (d.error) {
-          const errorMsg = d.details?.errors?.[0]?.reason 
+          const errorMsg = d.details?.errors?.[0]?.reason
             ? `YouTube API: ${d.details.errors[0].reason} - ${d.details.errors[0].message}`
             : d.error;
           setVideoError(errorMsg);
