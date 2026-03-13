@@ -86,26 +86,25 @@ const navigation = [
       </svg>
     ),
   },
-  // Temporarily commented out until we fix the music page error
-  // {
-  //   name: "Music",
-  //   href: "/music",
-  //   icon: (
-  //     <svg
-  //       className="h-5 w-5"
-  //       fill="none"
-  //       viewBox="0 0 24 24"
-  //       stroke="currentColor"
-  //     >
-  //       <path
-  //         strokeLinecap="round"
-  //         strokeLinejoin="round"
-  //         strokeWidth={2}
-  //         d="M3 18v-6a9 9 0 0118 0v6M3 18a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3v5zm16 0a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3v5z"
-  //       />
-  //     </svg>
-  //   ),
-  // },
+  {
+    name: "Music",
+    href: "/music",
+    icon: (
+      <svg
+        className="h-5 w-5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M3 18v-6a9 9 0 0118 0v6M3 18a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3v5zm16 0a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3v5z"
+        />
+      </svg>
+    ),
+  },
   {
     name: "Settings",
     href: "/settings",
