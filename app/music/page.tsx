@@ -867,6 +867,7 @@ export default function MusicPage() {
         session?.user?.user_metadata?.full_name ?? "Web Player",
         undefined,
         selectedBotIndex,
+        video.title,
       );
 
       if (result.error) {
