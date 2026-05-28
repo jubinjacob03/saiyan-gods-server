@@ -8,6 +8,21 @@ const BOT_KEY = process.env.BOT_API_KEY!;
 // Note: seek and filter not supported in yt-dlp implementation
 // Static segments (play, control, status) take priority in Next.js App Router.
 
+const getTargetUrl = (action: string, botIndex: string, searchParams?: string) => {
+  try {
+    const url = new URL(BOT_URL);
+    const basePort = parseInt(url.port || "8000", 10);
+    const index = parseInt(botIndex || "0", 10);
+    if (!isNaN(basePort) && !isNaN(index)) {
+      url.port = (basePort + index).toString();
+    }
+    const baseUrl = url.toString().replace(/\/$/, "");
+    return `${baseUrl}/api/music/${action}${searchParams ? `?${searchParams}` : ""}`;
+  } catch {
+    return `${BOT_URL}/api/music/${action}${searchParams ? `?${searchParams}` : ""}`;
+  }
+};
+
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ action: string }> },
@@ -15,7 +30,9 @@ export async function POST(
   try {
     const { action } = await params;
     const body = await request.json();
-    const response = await fetch(`${BOT_URL}/api/music/${action}`, {
+    const botIndex = request.nextUrl.searchParams.get("botIndex") || body.botIndex || "0";
+    
+    const response = await fetch(getTargetUrl(action, botIndex.toString()), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -41,10 +58,11 @@ export async function GET(
 ) {
   try {
     const { action } = await params;
-    const guildId = request.nextUrl.searchParams.get("guildId");
     const botIndex = request.nextUrl.searchParams.get("botIndex") || "0";
+    const guildId = request.nextUrl.searchParams.get("guildId") || "";
+    
     const response = await fetch(
-      `${BOT_URL}/api/music/${action}?guildId=${guildId}&botIndex=${botIndex}`,
+      getTargetUrl(action, botIndex, `guildId=${guildId}&botIndex=${botIndex}`),
       {
         headers: { Authorization: `Bearer ${BOT_KEY}` },
         cache: "no-store",
