@@ -682,6 +682,7 @@ export default function MusicPage() {
             session?.user?.user_metadata?.full_name ?? "Web Player",
             true,
             selectedBotIndex,
+            song.song_title
           );
           if (result.error) {
             failedCount++;
@@ -719,6 +720,7 @@ export default function MusicPage() {
         session?.user?.user_metadata?.full_name ?? "Web Player",
         true,
         selectedBotIndex,
+        song.song_title
       );
       if (result.error) {
         showToast(

@@ -59,6 +59,7 @@ export function musicPlay(
   username: string,
   fromPlaylist?: boolean,
   botIndex = 0,
+  fallbackQuery?: string,
 ): Promise<{ success?: boolean; song?: Song; added?: number; error?: string }> {
   return fetch("/api/bot/music/play", {
     method: "POST",
@@ -71,6 +72,7 @@ export function musicPlay(
       username,
       fromPlaylist,
       botIndex,
+      fallbackQuery,
     }),
   }).then((r) => r.json());
 }
