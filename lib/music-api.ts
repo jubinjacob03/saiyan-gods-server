@@ -43,15 +43,14 @@ export interface SearchResult {
 function cmd<T = { success?: boolean; error?: string }>(
   path: string,
   body: Record<string, unknown>,
+  botIndex = 0,
 ): Promise<T> {
   return fetch(`/api/bot/music/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ guildId: GUILD_ID, ...body }),
+    body: JSON.stringify({ guildId: GUILD_ID, botIndex, ...body }),
   }).then((r) => r.json());
 }
-
-// ── Play ─────────────────────────────────────────────────────────────────────
 
 export function musicPlay(
   voiceChannelId: string,
@@ -59,6 +58,7 @@ export function musicPlay(
   userId: string,
   username: string,
   fromPlaylist?: boolean,
+  botIndex = 0,
 ): Promise<{ success?: boolean; song?: Song; added?: number; error?: string }> {
   return fetch("/api/bot/music/play", {
     method: "POST",
@@ -70,70 +70,60 @@ export function musicPlay(
       userId,
       username,
       fromPlaylist,
+      botIndex,
     }),
   }).then((r) => r.json());
 }
 
-// ── Status ──────────────────────────────────────────────────────────────────
-
-export function musicStatus(): Promise<MusicStatus> {
-  return fetch(`/api/bot/music/status?guildId=${GUILD_ID}`, {
+export function musicStatus(botIndex = 0): Promise<MusicStatus> {
+  return fetch(`/api/bot/music/status?guildId=${GUILD_ID}&botIndex=${botIndex}`, {
     cache: "no-store",
   }).then((r) => r.json());
 }
 
-// ── Queue ───────────────────────────────────────────────────────────────────
-
-export function musicQueue(): Promise<{
+export function musicQueue(botIndex = 0): Promise<{
   queue: QueueEntry[];
   queueLength: number;
 }> {
-  return fetch(`/api/bot/music/queue?guildId=${GUILD_ID}`, {
+  return fetch(`/api/bot/music/queue?guildId=${GUILD_ID}&botIndex=${botIndex}`, {
     cache: "no-store",
   }).then((r) => r.json());
 }
-
-// ── Search ────────────────────────────────────────────────────────────────────
 
 export function musicSearch(
   query: string,
   limit = 10,
+  botIndex = 0,
 ): Promise<{ results: SearchResult[] }> {
-  return cmd("search", { query, limit });
+  return cmd("search", { query, limit }, botIndex);
 }
 
-// ── Direct command endpoints (no action string, no switch overhead) ───────────
+export const musicSkip = (botIndex = 0) => cmd("skip", {}, botIndex);
+export const musicPause = (botIndex = 0) => cmd("pause", {}, botIndex);
+export const musicResume = (botIndex = 0) => cmd("resume", {}, botIndex);
+export const musicToggle = (botIndex = 0) => cmd("toggle", {}, botIndex);
+export const musicStop = (botIndex = 0) => cmd("stop", {}, botIndex);
+export const musicShuffle = (botIndex = 0) => cmd("shuffle", {}, botIndex);
+export const musicRemove = (index: number, botIndex = 0) => cmd("remove", { value: index }, botIndex);
 
-export const musicSkip = () => cmd("skip", {});
-export const musicPause = () => cmd("pause", {});
-export const musicResume = () => cmd("resume", {});
-export const musicToggle = () => cmd("toggle", {});
-export const musicStop = () => cmd("stop", {});
-export const musicShuffle = () => cmd("shuffle", {});
-// Note: seek and filter not supported in yt-dlp implementation
-// export const musicSeek = (secs: number) => cmd("seek", { value: secs });
-export const musicRemove = (index: number) => cmd("remove", { value: index });
-// export const musicFilter = (name: string) => cmd("filter", { value: name });
-
-export function musicLoop(mode?: number) {
-  return cmd("loop", mode !== undefined ? { value: mode } : {});
+export function musicLoop(mode?: number, botIndex = 0) {
+  return cmd("loop", mode !== undefined ? { value: mode } : {}, botIndex);
 }
 
-export function musicVolume(vol: number) {
+export function musicVolume(vol: number, botIndex = 0) {
   return cmd<{ success?: boolean; volume?: number; error?: string }>("volume", {
     value: Math.max(0, Math.min(100, vol)),
-  });
+  }, botIndex);
 }
-
-// ── Legacy generic control (kept so nothing breaks during rollout) ────────────
 
 export function musicControl(
   action: "toggle" | "skip" | "stop" | "shuffle" | "loop" | "volume",
   value?: number,
+  botIndex = 0,
 ): Promise<{ success?: boolean; error?: string }> {
   return fetch("/api/bot/music/control", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ guildId: GUILD_ID, action, value }),
+    body: JSON.stringify({ guildId: GUILD_ID, action, value, botIndex }),
   }).then((r) => r.json());
 }

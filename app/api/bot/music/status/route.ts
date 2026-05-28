@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
   try {
     const guildId = request.nextUrl.searchParams.get("guildId");
+    const botIndex = request.nextUrl.searchParams.get("botIndex") || "0";
     const response = await fetch(
-      `${process.env.BOT_API_URL}/api/music/status?guildId=${guildId}`,
+      `${process.env.BOT_API_URL}/api/music/status?guildId=${guildId}&botIndex=${botIndex}`,
       {
         headers: { Authorization: `Bearer ${process.env.BOT_API_KEY}` },
         cache: "no-store",

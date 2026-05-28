@@ -42,8 +42,9 @@ export async function GET(
   try {
     const { action } = await params;
     const guildId = request.nextUrl.searchParams.get("guildId");
+    const botIndex = request.nextUrl.searchParams.get("botIndex") || "0";
     const response = await fetch(
-      `${BOT_URL}/api/music/${action}?guildId=${guildId}`,
+      `${BOT_URL}/api/music/${action}?guildId=${guildId}&botIndex=${botIndex}`,
       {
         headers: { Authorization: `Bearer ${BOT_KEY}` },
         cache: "no-store",

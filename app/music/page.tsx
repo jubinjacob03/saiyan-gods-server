@@ -126,6 +126,7 @@ export default function MusicPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [channels, setChannels] = useState<VoiceChannel[]>([]);
   const [selectedChannel, setSelectedChannel] = useState("");
+  const [selectedBotIndex, setSelectedBotIndex] = useState(0);
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [videos, setVideos] = useState<Video[]>([]);
@@ -197,6 +198,21 @@ export default function MusicPage() {
     getSession().then(setSession);
   }, []);
 
+  const handleSelectBot = useCallback((idx: number) => {
+    setSelectedBotIndex(idx);
+    volumeSyncedRef.current = false;
+    if (idx === 1) {
+      setSelectedChannel("1496481436377812992");
+    } else if (idx === 2) {
+      setSelectedChannel("1496527838226940174");
+    } else if (idx === 3) {
+      setSelectedChannel("1496527870598709432");
+    } else {
+      const lobby = channels.find((c) => c.name.toLowerCase().includes("lobby"));
+      setSelectedChannel(lobby?.id ?? channels[0]?.id ?? "");
+    }
+  }, [channels]);
+
   const fetchVoiceChannels = useCallback(async () => {
     if (!GUILD_ID) return;
     try {
@@ -220,10 +236,10 @@ export default function MusicPage() {
   }, [fetchVoiceChannels]);
 
   useEffect(() => {
-    if (!discordUserId || channels.length === 0) return;
+    if (!discordUserId || channels.length === 0 || selectedBotIndex > 0) return;
     const userCh = channels.find((c) => c.memberIds?.includes(discordUserId));
     if (userCh) setSelectedChannel(userCh.id);
-  }, [discordUserId, channels]);
+  }, [discordUserId, channels, selectedBotIndex]);
 
   useEffect(() => {
     currentSongUrlRef.current = status?.song?.url ?? null;
@@ -284,7 +300,7 @@ export default function MusicPage() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const s = await musicStatus();
+      const s = await musicStatus(selectedBotIndex);
       if (transitioningRef.current && s.song?.url !== preActionUrlRef.current) {
         stopRapidPoll();
       }
@@ -296,15 +312,20 @@ export default function MusicPage() {
           return v !== null ? Number(v) : 50;
         })();
         if (s.volume !== undefined && s.volume !== saved)
-          musicVolume(saved).catch(() => {});
+          musicVolume(saved, selectedBotIndex).catch(() => {});
         setVolume(saved);
       }
     } catch {}
-  }, [stopRapidPoll]);
+  }, [stopRapidPoll, selectedBotIndex]);
 
   useEffect(() => {
     fetchStatusRef.current = fetchStatus;
   }, [fetchStatus]);
+
+  useEffect(() => {
+    volumeSyncedRef.current = false;
+    fetchStatus();
+  }, [selectedBotIndex, fetchStatus]);
 
   useEffect(() => {
     fetchStatus();
@@ -660,6 +681,7 @@ export default function MusicPage() {
             discordUserId ?? "web",
             session?.user?.user_metadata?.full_name ?? "Web Player",
             true,
+            selectedBotIndex,
           );
           if (result.error) {
             failedCount++;
@@ -696,6 +718,7 @@ export default function MusicPage() {
         discordUserId ?? "web",
         session?.user?.user_metadata?.full_name ?? "Web Player",
         true,
+        selectedBotIndex,
       );
       if (result.error) {
         showToast(
@@ -840,6 +863,8 @@ export default function MusicPage() {
         video.url,
         discordUserId ?? "web",
         session?.user?.user_metadata?.full_name ?? "Web Player",
+        undefined,
+        selectedBotIndex,
       );
 
       if (result.error) {
@@ -862,32 +887,32 @@ export default function MusicPage() {
     setStatus((prev) =>
       prev ? { ...prev, paused: !prev.paused, playing: prev.paused } : prev,
     );
-    musicToggle().catch(() => {});
+    musicToggle(selectedBotIndex).catch(() => {});
     multiPoll([300, 1000]);
-  }, [multiPoll]);
+  }, [multiPoll, selectedBotIndex]);
 
   const handleSkip = useCallback(() => {
     startTransition(currentSongUrlRef.current);
-    musicSkip().catch(() => {});
-  }, [startTransition]);
+    musicSkip(selectedBotIndex).catch(() => {});
+  }, [startTransition, selectedBotIndex]);
 
   const handleStop = useCallback(() => {
     setStatus(null);
-    musicStop().catch(() => {});
-  }, []);
+    musicStop(selectedBotIndex).catch(() => {});
+  }, [selectedBotIndex]);
 
   const handleShuffle = useCallback(() => {
-    musicShuffle().catch(() => {});
+    musicShuffle(selectedBotIndex).catch(() => {});
     multiPoll([400, 1200]);
-  }, [multiPoll]);
+  }, [multiPoll, selectedBotIndex]);
 
   const handleLoop = useCallback(() => {
     setStatus((prev) =>
       prev ? { ...prev, repeatMode: (prev.repeatMode + 1) % 3 } : prev,
     );
-    musicLoop().catch(() => {});
+    musicLoop(undefined, selectedBotIndex).catch(() => {});
     multiPoll([300, 900]);
-  }, [multiPoll]);
+  }, [multiPoll, selectedBotIndex]);
 
   const handleVolumeChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -895,14 +920,14 @@ export default function MusicPage() {
       setVolume(v);
       localStorage.setItem("music_volume", String(v));
       setStatus((prev) => (prev ? { ...prev, volume: v } : prev));
-      musicVolume(v).catch(() => {});
+      musicVolume(v, selectedBotIndex).catch(() => {});
       fetch("/api/bot/music/config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ volume: v }),
       }).catch(() => {});
     },
-    [],
+    [selectedBotIndex],
   );
 
   const isPlaying = status?.playing && !status?.paused;
@@ -981,9 +1006,20 @@ export default function MusicPage() {
                   />
                 </svg>
                 <select
+                  value={selectedBotIndex}
+                  onChange={(e) => handleSelectBot(Number(e.target.value))}
+                  className="text-sm bg-muted border border-border/50 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40 mr-2 font-medium"
+                >
+                  <option value={0}>Remani (Main)</option>
+                  <option value={1}>Music VC I</option>
+                  <option value={2}>Music VC II</option>
+                  <option value={3}>Music VC III</option>
+                </select>
+                <select
                   value={selectedChannel}
+                  disabled={selectedBotIndex > 0}
                   onChange={(e) => setSelectedChannel(e.target.value)}
-                  className="text-sm bg-muted border border-border/50 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  className="text-sm bg-muted border border-border/50 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-primary/40 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {channels.length === 0 && (
                     <option value="">Loading...</option>
