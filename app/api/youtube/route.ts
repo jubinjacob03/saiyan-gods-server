@@ -22,9 +22,28 @@ export async function GET(request: NextRequest) {
   }
 
   const q = request.nextUrl.searchParams.get("q")?.trim() ?? "";
-  const searchQuery = q || "trending music"; // Default search if empty
 
   try {
+    if (!q) {
+      const itunesRes = await fetch("https://itunes.apple.com/us/rss/topsongs/limit=24/json");
+      if (itunesRes.ok) {
+        const itunesData = await itunesRes.json();
+        const videos = (itunesData.feed?.entry || []).map((item: any) => {
+          const title = item["im:name"]?.label || "Unknown Title";
+          const artist = item["im:artist"]?.label || "Unknown Artist";
+          return {
+            id: item.id?.attributes?.["im:id"] || Math.random().toString(),
+            title: title,
+            channel: artist,
+            thumbnail: item["im:image"]?.[2]?.label || item["im:image"]?.[0]?.label || "",
+            duration: "", // iTunes RSS does not provide full track duration
+            url: `scsearch:${title} ${artist}`,
+          };
+        });
+        return NextResponse.json({ videos });
+      }
+    }
+
     const response = await fetch(`${MUSIC_BOT_API_URL}/search`, {
       method: "POST",
       headers: {
@@ -32,7 +51,7 @@ export async function GET(request: NextRequest) {
         Authorization: `Bearer ${MUSIC_BOT_API_KEY}`,
       },
       body: JSON.stringify({
-        query: searchQuery,
+        query: q,
         limit: 24,
       }),
     });

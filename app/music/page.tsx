@@ -133,6 +133,7 @@ export default function MusicPage() {
   const [loadingVideos, setLoadingVideos] = useState(true);
   const [videoError, setVideoError] = useState<string | null>(null);
   const [loadingPlay, setLoadingPlay] = useState<string | null>(null);
+  const [loadingPlaylistPlay, setLoadingPlaylistPlay] = useState<string | null>(null);
   const [status, setStatus] = useState<MusicStatus | null>(null);
   const [volume, setVolume] = useState(() => {
     if (typeof window === "undefined") return 50;
@@ -339,7 +340,7 @@ export default function MusicPage() {
 
   useEffect(() => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
-    searchDebounce.current = setTimeout(() => setDebouncedQuery(query), 600);
+    searchDebounce.current = setTimeout(() => setDebouncedQuery(query), 1500);
   }, [query]);
 
   useEffect(() => {
@@ -657,6 +658,7 @@ export default function MusicPage() {
     if (closeDialog) {
       setPlaylistPanelOpen(false); // Close the dialog
     }
+    setLoadingPlaylistPlay(playlist.id);
     showToast(`Playing ${playlist.name}...`, "success");
 
     try {
@@ -704,6 +706,8 @@ export default function MusicPage() {
     } catch (error) {
       console.error("Failed to play playlist:", error);
       showToast("Failed to load playlist", "error");
+    } finally {
+      setLoadingPlaylistPlay(null);
     }
   };
 
@@ -1063,8 +1067,26 @@ export default function MusicPage() {
               placeholder="Search for songs..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-border/50 bg-muted/40 text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground/60"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (searchDebounce.current) clearTimeout(searchDebounce.current);
+                  setDebouncedQuery(query);
+                }
+              }}
+              className="w-full pl-9 pr-24 py-2.5 rounded-xl border border-white/5 bg-black/20 backdrop-blur-md text-sm focus:outline-none focus:ring-2 focus:ring-primary/40 placeholder:text-muted-foreground/60 transition-all duration-300 shadow-inner"
             />
+            {query && (
+              <button
+                onClick={() => {
+                  if (searchDebounce.current) clearTimeout(searchDebounce.current);
+                  setDebouncedQuery(query);
+                }}
+                className="absolute right-10 top-1/2 -translate-y-1/2 text-xs font-semibold px-2 py-1 bg-primary/20 hover:bg-primary/40 text-primary rounded-md transition-colors"
+              >
+                Search
+              </button>
+            )}
             {query && (
               <button
                 onClick={() => setQuery("")}
@@ -1099,14 +1121,14 @@ export default function MusicPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 mb-8"
+              className="flex overflow-x-auto snap-x snap-mandatory gap-4 pb-4 mb-8 [&::-webkit-scrollbar]:h-2 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/50 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border"
             >
               {playlists.slice(0, 12).map((playlist) => (
                 <motion.div
                   key={playlist.id}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.97 }}
-                  className="group"
+                  className="group w-[200px] sm:w-[240px] shrink-0 snap-start"
                 >
                   <button
                     onClick={() => handlePlayPlaylist(playlist, true)}
@@ -1174,19 +1196,22 @@ export default function MusicPage() {
                       </div>
 
                       {/* Play button overlay on hover */}
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                      <div className={`absolute inset-0 bg-black/40 transition-all duration-300 flex items-center justify-center ${loadingPlaylistPlay === playlist.id ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
                         <motion.div
                           initial={{ scale: 0.8 }}
                           whileHover={{ scale: 1.1 }}
                           className="p-3 bg-primary rounded-full shadow-lg"
                         >
-                          <svg
-                            className="h-6 w-6 text-primary-foreground"
-                            fill="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M8 5v14l11-7z" />
-                          </svg>
+                          {loadingPlaylistPlay === playlist.id ? (
+                            <svg className="h-6 w-6 text-primary-foreground animate-spin" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                            </svg>
+                          ) : (
+                            <svg className="h-6 w-6 text-primary-foreground" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M8 5v14l11-7z" />
+                            </svg>
+                          )}
                         </motion.div>
                       </div>
                     </div>
@@ -1273,6 +1298,27 @@ export default function MusicPage() {
               />
             </svg>
             <p className="text-sm text-muted-foreground">{videoError}</p>
+          </div>
+        ) : videos.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
+            <svg
+              className="h-10 w-10 text-muted-foreground/40"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+            <p className="text-sm text-muted-foreground">
+              {debouncedQuery
+                ? "No songs found for your search."
+                : "No trending songs available right now."}
+            </p>
           </div>
         ) : (
           <motion.div
