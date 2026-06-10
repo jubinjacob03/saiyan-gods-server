@@ -6,11 +6,11 @@ import { createClient } from "@/lib/supabase";
 
 // ─── Role constants (must match sounds/page.tsx)
 const MODERATOR_ROLE_ID = "1473075468088377349";
-const MANAGER_ROLE_ID = "1473075468088377350";
+const ADMINISTRATOR_ROLE_ID = "1473075468088377350";
 const OWNER_ROLE_ID = "1473075468088377352";
 const UPLOAD_ROLES = new Set([
   MODERATOR_ROLE_ID,
-  MANAGER_ROLE_ID,
+  ADMINISTRATOR_ROLE_ID,
   OWNER_ROLE_ID,
 ]);
 import { Button } from "@/components/ui/button";
@@ -282,7 +282,7 @@ export default function UploadPage() {
           <div>
             <h2 className="text-2xl font-bold mb-2">Access Denied</h2>
             <p className="text-muted-foreground max-w-sm">
-              Only Moderators, Managers, and the Owner can upload sounds.
+              Only Moderators, Administrators, and the Owner can upload sounds.
             </p>
           </div>
           <a

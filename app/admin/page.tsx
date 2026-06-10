@@ -17,12 +17,12 @@ import { createClient } from "@/lib/supabase";
 import { BotSocket } from "@/lib/bot-socket";
 
 const MODERATOR_ROLE_ID = "1473075468088377349";
-const MANAGER_ROLE_ID = "1473075468088377350";
+const ADMINISTRATOR_ROLE_ID = "1473075468088377350";
 const OWNER_ROLE_ID = "1473075468088377352";
 
 const ELEVATED_ROLES = new Set([
   MODERATOR_ROLE_ID,
-  MANAGER_ROLE_ID,
+  ADMINISTRATOR_ROLE_ID,
   OWNER_ROLE_ID,
 ]);
 
@@ -37,7 +37,7 @@ interface PendingRequest {
 }
 
 interface UserStatus {
-  hasFriends: boolean;
+  hasModerator: boolean;
   hasMember: boolean;
   hasPending: boolean;
   pendingRole: string | null;
@@ -211,7 +211,7 @@ export default function AdminPage() {
     }
   };
 
-  const handleApply = async (type: "friends" | "member") => {
+  const handleApply = async (type: "member" | "moderator") => {
     if (!currentUserId) return;
     setApplyLoading(type);
     try {
@@ -288,9 +288,11 @@ export default function AdminPage() {
   };
 
   const isRoleLoading = isModerator === null;
-  const isMemberRole = approveModal?.requestedRole
+  const isGodPrefixRole = approveModal?.requestedRole
     ?.toLowerCase()
-    .includes("member");
+    .includes("member") || approveModal?.requestedRole
+    ?.toLowerCase()
+    .includes("moderator");
 
   return (
     <AppLayout>
@@ -345,17 +347,17 @@ export default function AdminPage() {
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">
-                  Nickname{isMemberRole ? " (God prefix will be added)" : ""}
+                  Nickname{isGodPrefixRole ? " (God prefix will be added)" : ""}
                 </label>
                 <Input
                   placeholder={
-                    isMemberRole ? "Enter name (e.g. Shadow)" : "Enter nickname"
+                    isGodPrefixRole ? "Enter name (e.g. Shadow)" : "Enter nickname"
                   }
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleApprove()}
                 />
-                {isMemberRole && nickname.trim() && (
+                {isGodPrefixRole && nickname.trim() && (
                   <p className="text-xs text-muted-foreground">
                     Final nickname:{" "}
                     <span className="text-foreground font-medium">
@@ -617,7 +619,7 @@ export default function AdminPage() {
                     <div className="w-4 h-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
                     Loading your status...
                   </div>
-                ) : userStatus.hasMember ? (
+                ) : userStatus.hasMember || userStatus.hasModerator ? (
                   <div className="flex items-center gap-2 px-3 py-3 rounded-lg bg-green-500/10 border border-green-500/20">
                     <svg
                       className="w-5 h-5 text-green-500 shrink-0"
@@ -634,17 +636,17 @@ export default function AdminPage() {
                     </svg>
                     <div>
                       <p className="text-sm font-medium text-green-600 dark:text-green-400">
-                        You are a verified Member
+                        You are verified
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        Full server access granted
+                        Server access granted
                       </p>
                     </div>
                   </div>
                 ) : (
                   <>
                     {userStatus.hasPending ? (
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm">
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-yellow-500/10 border border-yellow-500/20 text-sm mb-4">
                         <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse shrink-0" />
                         <span className="text-yellow-600 dark:text-yellow-400 font-medium">
                           Pending {userStatus.pendingRole} request
@@ -655,49 +657,20 @@ export default function AdminPage() {
                       </div>
                     ) : null}
 
-                    {!userStatus.hasFriends && (
-                      <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">
-                          Apply for the{" "}
-                          <span className="font-medium text-foreground">
-                            Friends
-                          </span>{" "}
-                          role to get basic access to the server.
-                        </p>
-                        <Button
-                          onClick={() => handleApply("friends")}
-                          disabled={!!applyLoading || userStatus.hasPending}
-                          className="w-full"
-                        >
-                          {applyLoading === "friends" ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                              Submitting...
-                            </>
-                          ) : (
-                            "Apply for Friends"
-                          )}
-                        </Button>
-                      </div>
-                    )}
-
-                    {userStatus.hasFriends && !userStatus.hasMember && (
-                      <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">
-                          You have Friends role. Apply for{" "}
-                          <span className="font-medium text-foreground">
-                            Member
-                          </span>{" "}
-                          to unlock full server access.
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2 p-3 rounded-lg border border-border bg-card">
+                        <h4 className="font-semibold text-sm">Member Role</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Apply for Member role to get full access to the server.
                         </p>
                         <Button
                           onClick={() => handleApply("member")}
                           disabled={!!applyLoading || userStatus.hasPending}
-                          className="w-full"
+                          className="w-full h-8 text-xs"
                         >
                           {applyLoading === "member" ? (
                             <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
+                              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin mr-1.5" />
                               Submitting...
                             </>
                           ) : (
@@ -705,7 +678,28 @@ export default function AdminPage() {
                           )}
                         </Button>
                       </div>
-                    )}
+
+                      <div className="space-y-2 p-3 rounded-lg border border-border bg-card">
+                        <h4 className="font-semibold text-sm">Moderator Role</h4>
+                        <p className="text-xs text-muted-foreground">
+                          Apply for Moderator role to help manage the server.
+                        </p>
+                        <Button
+                          onClick={() => handleApply("moderator")}
+                          disabled={!!applyLoading || userStatus.hasPending}
+                          className="w-full h-8 text-xs bg-green-600 hover:bg-green-700"
+                        >
+                          {applyLoading === "moderator" ? (
+                            <>
+                              <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin mr-1.5" />
+                              Submitting...
+                            </>
+                          ) : (
+                            "Apply for Moderator"
+                          )}
+                        </Button>
+                      </div>
+                    </div>
                   </>
                 )}
               </CardContent>
