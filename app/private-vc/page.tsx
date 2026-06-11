@@ -15,6 +15,12 @@ import { designTokens } from "@/lib/design-tokens";
 import { createClient } from "@/lib/supabase";
 
 const OWNER_ROLE_ID = "1473075468088377352";
+const VC_ACCESS_ROLE_IDS = [
+  "1473075468088377347", // Member
+  "1473075468088377349", // Moderator
+  "1473075468088377350", // Administrator
+  "1473075468088377352", // Owner
+];
 
 const container = {
   hidden: { opacity: 0 },
@@ -110,16 +116,20 @@ function MemberSelectModal({
     });
   };
 
-  const handleConfirm = () => {
-    onConfirm(Array.from(selected));
+  const reset = () => {
+    setSelected(new Set());
+    setSearch("");
   };
 
-  useEffect(() => {
-    if (!open) {
-      setSelected(new Set());
-      setSearch("");
-    }
-  }, [open]);
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
+
+  const handleConfirm = () => {
+    onConfirm(Array.from(selected));
+    reset();
+  };
 
   if (!open) return null;
 
@@ -198,7 +208,7 @@ function MemberSelectModal({
           )}
         </div>
         <div className="p-4 border-t border-border flex gap-3 justify-end">
-          <Button variant="outline" onClick={onClose} disabled={loading}>
+          <Button variant="outline" onClick={handleClose} disabled={loading}>
             Cancel
           </Button>
           <Button onClick={handleConfirm} disabled={loading}>
@@ -213,6 +223,7 @@ function MemberSelectModal({
 export default function PrivateVCPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [isOwner, setIsOwner] = useState(false);
+  const [hasVCAccess, setHasVCAccess] = useState(false);
   const [vcs, setVcs] = useState<PrivateVC[]>([]);
   const [allMembers, setAllMembers] = useState<BotMember[]>([]);
   const [loadingVCs, setLoadingVCs] = useState(true);
@@ -281,6 +292,9 @@ export default function PrivateVCPage() {
             const json = await res.json();
             const roleIds: string[] = json.data?.roleIds ?? [];
             setIsOwner(roleIds.includes(OWNER_ROLE_ID));
+            setHasVCAccess(
+              roleIds.some((id) => VC_ACCESS_ROLE_IDS.includes(id)),
+            );
           }
         } catch {}
       }
@@ -331,7 +345,11 @@ export default function PrivateVCPage() {
       const res = await fetch("/api/bot/private-vc/remove", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requesterId: currentUserId, targetUserId }),
+        body: JSON.stringify({
+          requesterId: currentUserId,
+          targetUserId,
+          channelId: vcId,
+        }),
       });
       const json = await res.json();
       if (res.ok) {
@@ -386,7 +404,7 @@ export default function PrivateVCPage() {
       });
       const json = await res.json();
       if (res.ok) {
-        showToast("Private VC force-deleted");
+        showToast("Private VC deleted");
         setDeleteConfirm(null);
         await fetchVCs();
       } else {
@@ -402,10 +420,17 @@ export default function PrivateVCPage() {
   // Members not already in the VC
   const addableMembers = (vc: PrivateVC) => {
     const inVC = new Set(vc.members.map((m) => m.id));
-    return allMembers.filter((m) => !inVC.has(m.id));
+    return allMembers.filter((m) => m.id !== currentUserId && !inVC.has(m.id));
   };
 
-  const myVC = vcs.find((vc) => vc.members.some((m) => m.id === currentUserId));
+  const createdVC = vcs.find((vc) => vc.creatorId === currentUserId);
+  const joinedVC = vcs.find((vc) => vc.members.some((m) => m.id === currentUserId));
+  const canCreateVC =
+    Boolean(currentUserId) && hasVCAccess && !createdVC && !joinedVC;
+  const addTargetVC = addTarget
+    ? vcs.find((vc) => vc.channelId === addTarget.vcId)
+    : null;
+  const addTargetMembers = addTargetVC ? addableMembers(addTargetVC) : [];
 
   return (
     <AppLayout>
@@ -450,30 +475,38 @@ export default function PrivateVCPage() {
               </p>
             </div>
             <div className="overflow-y-auto max-h-64 p-2">
-              {addableMembers(
-                vcs.find((v) => v.channelId === addTarget.vcId)!,
-              ).map((m) => {
-                const key = `${addTarget.vcId}-add-${m.id}`;
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => handleAdd(m.id)}
-                    disabled={!!actionLoading}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-muted/60 transition-colors disabled:opacity-50"
-                  >
-                    <Avatar member={m} size={8} />
-                    <div>
-                      <p className="text-sm font-medium">{m.displayName}</p>
-                      <p className="text-xs text-muted-foreground">
-                        @{m.username}
-                      </p>
-                    </div>
-                    {actionLoading === key && (
-                      <div className="ml-auto w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                    )}
-                  </button>
-                );
-              })}
+              {!addTargetVC ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  This private VC no longer exists.
+                </p>
+              ) : addTargetMembers.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-6">
+                  No members available to add.
+                </p>
+              ) : (
+                addTargetMembers.map((m) => {
+                  const key = `${addTarget.vcId}-add-${m.id}`;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => handleAdd(m.id)}
+                      disabled={!!actionLoading}
+                      className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left hover:bg-muted/60 transition-colors disabled:opacity-50"
+                    >
+                      <Avatar member={m} size={8} />
+                      <div>
+                        <p className="text-sm font-medium">{m.displayName}</p>
+                        <p className="text-xs text-muted-foreground">
+                          @{m.username}
+                        </p>
+                      </div>
+                      {actionLoading === key && (
+                        <div className="ml-auto w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                      )}
+                    </button>
+                  );
+                })
+              )}
             </div>
             <div className="p-4 border-t border-border flex justify-end">
               <Button
@@ -525,7 +558,17 @@ export default function PrivateVCPage() {
               </motion.svg>
               <span className="ml-1.5">Refresh</span>
             </Button>
-            <Button onClick={() => setCreateModalOpen(true)}>
+            <Button
+              onClick={() => setCreateModalOpen(true)}
+              disabled={!canCreateVC}
+              title={
+                canCreateVC
+                  ? "Create private VC"
+                  : !hasVCAccess
+                    ? "You need the Member role to use private voice channels"
+                    : "Delete your created VC or leave your current VC before creating a new one"
+              }
+            >
               <svg
                 className={`${designTokens.icons.sm} mr-1.5`}
                 fill="none"
@@ -588,6 +631,7 @@ export default function PrivateVCPage() {
                 <Button
                   className="mt-4"
                   onClick={() => setCreateModalOpen(true)}
+                  disabled={!canCreateVC}
                 >
                   Create your first VC
                 </Button>
@@ -602,14 +646,16 @@ export default function PrivateVCPage() {
             className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
           >
             {vcs.map((vc) => {
-              const isMyVC = vc.members.some((m) => m.id === currentUserId);
+              const isMember = vc.members.some((m) => m.id === currentUserId);
+              const isCreator = vc.creatorId === currentUserId;
+              const canManageThisVC = isCreator || isOwner;
               const isDeleting = actionLoading === `delete-${vc.channelId}`;
               const pendingDelete = deleteConfirm === vc.channelId;
               return (
                 <motion.div key={vc.channelId} variants={item}>
                   <Card
                     className={`h-full flex flex-col ${
-                      isMyVC ? "border-primary/40 bg-primary/5" : ""
+                      isCreator ? "border-primary/40 bg-primary/5" : ""
                     }`}
                   >
                     <CardHeader className="pb-3">
@@ -642,11 +688,15 @@ export default function PrivateVCPage() {
                             </CardDescription>
                           </div>
                         </div>
-                        {isMyVC && (
+                        {isCreator ? (
                           <span className="text-xs px-2 py-0.5 rounded-full bg-primary/20 text-primary font-medium">
-                            Your VC
+                            Created by you
                           </span>
-                        )}
+                        ) : isMember ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
+                            Joined
+                          </span>
+                        ) : null}
                       </div>
                       {/* Creator */}
                       {vc.creatorName && (
@@ -692,7 +742,7 @@ export default function PrivateVCPage() {
                                 {m.displayName}
                               </p>
                             </div>
-                            {m.id !== currentUserId && isMyVC && (
+                            {m.id !== currentUserId && canManageThisVC && (
                               <button
                                 onClick={() => handleRemove(vc.channelId, m.id)}
                                 disabled={
@@ -727,7 +777,7 @@ export default function PrivateVCPage() {
                       </div>
 
                       {/* Add member button */}
-                      {isMyVC && vc.memberCount < 5 && (
+                      {isCreator && vc.memberCount < 5 && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -756,13 +806,13 @@ export default function PrivateVCPage() {
                         </Button>
                       )}
 
-                      {/* Force Delete — owner only */}
-                      {isOwner && (
+                      {/* Delete — creator or owner */}
+                      {canManageThisVC && (
                         <div className="pt-1 border-t border-border/50">
                           {pendingDelete ? (
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-red-500 flex-1">
-                                Kick all members &amp; delete?
+                                Move members to lobby &amp; delete?
                               </span>
                               <button
                                 onClick={() => setDeleteConfirm(null)}
@@ -800,7 +850,7 @@ export default function PrivateVCPage() {
                                   d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
                                 />
                               </svg>
-                              Force Delete
+                              Delete VC
                             </button>
                           )}
                         </div>
