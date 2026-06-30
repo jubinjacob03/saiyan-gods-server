@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -9,18 +8,14 @@ export const metadata: Metadata = {
   description: "Watch Party",
 };
 
-export default function RootLayout({
+export default function RemaniLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body
-        className={`${inter.className} bg-[#141414] text-white antialiased`}
-      >
-        {children}
-      </body>
-    </html>
+    <div className={`${inter.className} bg-[#141414] text-white antialiased min-h-screen`}>
+      {children}
+    </div>
   );
 }
