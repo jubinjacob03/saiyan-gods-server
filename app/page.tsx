@@ -97,6 +97,12 @@ export default function Home() {
       setLoading(false);
       hasDataRef.current = true;
     }
+
+    // Redirect to the Discord Activity if loaded inside Discord's iframe
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.has("frame_id")) {
+      window.location.href = "/remani";
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
