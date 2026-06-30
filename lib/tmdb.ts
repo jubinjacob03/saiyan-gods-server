@@ -1,6 +1,6 @@
-export const TMDB_BASE_URL = "https://api.themoviedb.org/3";
-export const TMDB_IMG_URL = "https://image.tmdb.org/t/p/w500";
-export const TMDB_HERO_IMG_URL = "https://image.tmdb.org/t/p/original";
+export const TMDB_BASE_URL = "/tmdb-api/3";
+export const TMDB_IMG_URL = "/tmdb-image/t/p/w500";
+export const TMDB_HERO_IMG_URL = "/tmdb-image/t/p/original";
 
 export const CATEGORIES = [
   { title: "Now Trending", url: "/trending/all/day" },
