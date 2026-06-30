@@ -5,7 +5,7 @@ import { Play, Search, Loader2, Info, User, ChevronDown, Plus, ThumbsUp } from "
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useDiscordSync } from "@/lib/discord";
-import { fetchTMDB, searchTMDB, CATEGORIES, TMDB_IMG_URL, TMDB_HERO_IMG_URL } from "@/lib/tmdb";
+import { fetchTMDB, searchTMDB, CATEGORIES, getTmdbImgUrl } from "@/lib/tmdb";
 import { useRouter } from "next/navigation";
 
 export default function Home() {
@@ -181,7 +181,7 @@ export default function Home() {
                   onClick={() => openPlayer(item.id, item.media_type || "movie", 0)}
                 >
                   <img 
-                    src={`${TMDB_IMG_URL}${item.poster_path}`} 
+                    src={getTmdbImgUrl(item.poster_path, "poster")} 
                     alt={item.title || item.name} 
                     className="w-full h-full object-cover"
                     loading="lazy"
@@ -206,7 +206,7 @@ export default function Home() {
               <div className="relative h-[85vh] md:h-[95vh] w-full">
                 <div className="absolute inset-0">
                   <img 
-                    src={`${TMDB_HERO_IMG_URL}${heroItem.backdrop_path}`} 
+                    src={getTmdbImgUrl(heroItem.backdrop_path, "hero")} 
                     className="w-full h-full object-cover"
                     alt="Hero Background"
                   />
@@ -274,8 +274,8 @@ export default function Home() {
                           onClick={() => openPlayer(item.id, item.media_type || row.defaultType, 0)}
                         >
                           <img 
-                            src={`${TMDB_IMG_URL}${item.poster_path}`} 
-                            alt={item.title || item.name} 
+                          src={getTmdbImgUrl(item.poster_path, "poster")} 
+                          alt={item.title || item.name} 
                             className="w-full h-auto object-cover rounded-md group-hover:rounded-b-none transition-all duration-300"
                             loading="lazy"
                           />

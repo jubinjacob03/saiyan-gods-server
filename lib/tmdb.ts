@@ -1,7 +1,3 @@
-export const TMDB_BASE_URL = "/tmdb-api/3";
-export const TMDB_IMG_URL = "/tmdb-image/t/p/w500";
-export const TMDB_HERO_IMG_URL = "/tmdb-image/t/p/original";
-
 export const CATEGORIES = [
   { title: "Now Trending", url: "/trending/all/day" },
   { title: "Anime", url: "/discover/tv?with_genres=16&with_original_language=ja" },
@@ -16,11 +12,23 @@ export const CATEGORIES = [
   { title: "Japanese (Live Action)", url: "/discover/movie?with_original_language=ja" },
 ];
 
+export function getBasePath() {
+  if (typeof window !== "undefined" && window.location.hostname.includes(".discordsays.com")) {
+    return "/.proxy";
+  }
+  return "";
+}
+
+export function getTmdbImgUrl(path: string, type: "hero" | "poster" = "poster") {
+  const size = type === "hero" ? "original" : "w500";
+  return `${getBasePath()}/tmdb-image/t/p/${size}${path}`;
+}
+
 export async function fetchTMDB(endpoint: string, apiKey: string) {
   if (!apiKey) return null;
   try {
     const separator = endpoint.includes("?") ? "&" : "?";
-    const res = await fetch(`${TMDB_BASE_URL}${endpoint}${separator}api_key=${apiKey}`);
+    const res = await fetch(`${getBasePath()}/tmdb-api/3${endpoint}${separator}api_key=${apiKey}`);
     return await res.json();
   } catch (e) {
     console.error(e);
@@ -31,7 +39,7 @@ export async function fetchTMDB(endpoint: string, apiKey: string) {
 export async function searchTMDB(query: string, apiKey: string) {
   if (!apiKey || !query) return null;
   try {
-    const res = await fetch(`${TMDB_BASE_URL}/search/multi?query=${encodeURIComponent(query)}&api_key=${apiKey}`);
+    const res = await fetch(`${getBasePath()}/tmdb-api/3/search/multi?query=${encodeURIComponent(query)}&api_key=${apiKey}`);
     return await res.json();
   } catch (e) {
     console.error(e);
