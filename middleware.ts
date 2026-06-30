@@ -1,7 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-export async function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -34,11 +34,20 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // If this request is coming from the Discord Activity iframe, instantly redirect to /remani
+  // This prevents Discord users from ever hitting the dashboard or the login page.
+  if (request.nextUrl.searchParams.has("frame_id") && !request.nextUrl.pathname.startsWith("/remani")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/remani";
+    return NextResponse.redirect(url);
+  }
+
   // Protect routes - redirect to login if not authenticated
   if (
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
-    !request.nextUrl.pathname.startsWith("/auth")
+    !request.nextUrl.pathname.startsWith("/auth") &&
+    !request.nextUrl.pathname.startsWith("/remani")
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
@@ -58,6 +67,6 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     // Exclude API routes — they use BOT_API_KEY auth, not user sessions
-    "/((?!_next/static|_next/image|favicon.ico|api/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|api/|remani/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
