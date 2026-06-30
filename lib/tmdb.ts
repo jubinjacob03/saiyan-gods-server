@@ -25,24 +25,22 @@ export function getTmdbImgUrl(path: string, type: "hero" | "poster" = "poster") 
 }
 
 export async function fetchTMDB(endpoint: string, apiKey: string) {
-  if (!apiKey) return null;
-  try {
-    const separator = endpoint.includes("?") ? "&" : "?";
-    const res = await fetch(`${getBasePath()}/tmdb-api/3${endpoint}${separator}api_key=${apiKey}`);
-    return await res.json();
-  } catch (e) {
-    console.error(e);
-    return null;
+  if (!apiKey) throw new Error("No API Key");
+  const separator = endpoint.includes("?") ? "&" : "?";
+  const url = `${getBasePath()}/tmdb-api/3${endpoint}${separator}api_key=${apiKey}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Fetch failed: ${res.status} ${res.statusText} - ${url}`);
   }
+  return await res.json();
 }
 
 export async function searchTMDB(query: string, apiKey: string) {
-  if (!apiKey || !query) return null;
-  try {
-    const res = await fetch(`${getBasePath()}/tmdb-api/3/search/multi?query=${encodeURIComponent(query)}&api_key=${apiKey}`);
-    return await res.json();
-  } catch (e) {
-    console.error(e);
-    return null;
+  if (!apiKey || !query) throw new Error("No API Key or Query");
+  const url = `${getBasePath()}/tmdb-api/3/search/multi?query=${encodeURIComponent(query)}&api_key=${apiKey}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Fetch failed: ${res.status} - ${url}`);
   }
+  return await res.json();
 }

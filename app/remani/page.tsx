@@ -21,6 +21,9 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
+
+  const addDebug = (msg: string) => setDebugLogs(prev => [...prev, msg].slice(-10));
 
   const { status, remoteState, broadcastState, logAction } = useDiscordSync();
   const isRemoteUpdate = useRef(false);
@@ -51,23 +54,32 @@ export default function Home() {
 
   const loadContent = async () => {
     setIsLoading(true);
-    const trending = await fetchTMDB("/trending/all/day", apiKey);
-    if (trending?.results?.length > 0) {
-      setHeroItem(trending.results[0]);
-    }
-
-    const newRows = [];
-    for (const cat of CATEGORIES) {
-      const data = await fetchTMDB(cat.url, apiKey);
-      if (data?.results?.length > 0) {
-        newRows.push({
-          title: cat.title,
-          items: data.results,
-          defaultType: cat.url.includes("/tv") ? "tv" : "movie",
-        });
+    addDebug(`loadContent start. API Key exists: ${!!apiKey}`);
+    try {
+      addDebug(`Fetching trending... Path: /trending/all/day`);
+      const trending = await fetchTMDB("/trending/all/day", apiKey);
+      addDebug(`Trending result: ${trending ? (trending.results?.length + ' items') : 'NULL/FAILED'}`);
+      
+      if (trending?.results?.length > 0) {
+        setHeroItem(trending.results[0]);
       }
+
+      const newRows = [];
+      for (const cat of CATEGORIES) {
+        const data = await fetchTMDB(cat.url, apiKey);
+        if (data?.results?.length > 0) {
+          newRows.push({
+            title: cat.title,
+            items: data.results,
+            defaultType: cat.url.includes("/tv") ? "tv" : "movie",
+          });
+        }
+      }
+      addDebug(`Loaded ${newRows.length} categories`);
+      setRowsData(newRows);
+    } catch (err: any) {
+      addDebug(`FATAL ERROR: ${err.message}`);
     }
-    setRowsData(newRows);
     setIsLoading(false);
   };
 
@@ -79,9 +91,13 @@ export default function Home() {
     }
     setIsSearching(true);
     if (logAction) logAction("search", `Searched for: ${searchQuery}`);
-    const results = await searchTMDB(searchQuery, apiKey);
-    if (results?.results) {
-      setSearchResults(results.results.filter((item: any) => item.poster_path && (item.media_type === "movie" || item.media_type === "tv")));
+    try {
+      const results = await searchTMDB(searchQuery, apiKey);
+      if (results?.results) {
+        setSearchResults(results.results.filter((item: any) => item.poster_path && (item.media_type === "movie" || item.media_type === "tv")));
+      }
+    } catch (err: any) {
+      addDebug(`SEARCH ERROR: ${err.message}`);
     }
     setIsSearching(false);
   };
@@ -313,6 +329,14 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Debug Panel */}
+      <div className="fixed bottom-0 left-0 bg-black/80 text-green-400 p-2 text-xs font-mono z-[9999] max-w-sm pointer-events-none">
+        <div>Hostname: {typeof window !== 'undefined' ? window.location.hostname : 'ssr'}</div>
+        <div>API Key: {apiKey ? 'SET' : 'MISSING'}</div>
+        <div>Logs:</div>
+        {debugLogs.map((log, i) => <div key={i}>{log}</div>)}
+      </div>
     </div>
   );
 }
