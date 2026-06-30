@@ -66,7 +66,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Exclude API routes — they use BOT_API_KEY auth, not user sessions
-    "/((?!_next/static|_next/image|favicon.ico|api/|remani/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Exclude API routes, remani, tmdb proxy paths, and Discord's .proxy path
+    "/((?!_next/static|_next/image|favicon.ico|api/|remani/|tmdb-api/|tmdb-image/|\\.proxy/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

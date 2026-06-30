@@ -8,7 +8,15 @@ const nextConfig: NextConfig = {
         destination: 'https://api.themoviedb.org/:path*',
       },
       {
+        source: '/\\.proxy/tmdb-api/:path*',
+        destination: 'https://api.themoviedb.org/:path*',
+      },
+      {
         source: '/tmdb-image/:path*',
+        destination: 'https://image.tmdb.org/:path*',
+      },
+      {
+        source: '/\\.proxy/tmdb-image/:path*',
         destination: 'https://image.tmdb.org/:path*',
       }
     ];
