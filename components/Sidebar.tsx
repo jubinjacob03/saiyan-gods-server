@@ -164,6 +164,7 @@ export function Sidebar({
   const router = useRouter();
   const [session, setSession] = useState<Session | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const isMovies = pathname?.startsWith("/nexkord--movies");
 
   useEffect(() => {
     loadSession();
@@ -182,7 +183,10 @@ export function Sidebar({
   return (
     <div
       className={[
-        "flex h-full w-72 shrink-0 flex-col border-r bg-linear-to-b from-card to-card/50 shadow-lg",
+        "flex h-full w-72 shrink-0 flex-col shadow-lg",
+        isMovies 
+          ? "bg-[#141414]/95 backdrop-blur-xl border-r border-white/5 text-gray-300"
+          : "border-r bg-linear-to-b from-card to-card/50",
         "fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out",
         forceOverlay ? "" : "md:static md:z-auto md:translate-x-0",
         mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full",
@@ -213,26 +217,31 @@ export function Sidebar({
           </svg>
         </button>
       </div>
-      <div className="flex h-20 items-center justify-center border-b px-6 bg-linear-to-r from-primary/10 to-primary/5">
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.2 }}
-          className="flex items-center gap-3"
-        >
-          <Image
-            src="/LOGO.jpeg"
-            alt="Saiyan Gods"
-            width={44}
-            height={44}
-            className="rounded-full ring-2 ring-primary/30 object-cover"
-          />
-          <div>
-            <h1 className="text-xl font-bold tracking-tight">Saiyan Gods</h1>
-            <p className="text-xs text-muted-foreground">Server Dashboard</p>
-          </div>
-        </motion.div>
-      </div>
+      {/* Header with Logo */}
+      {!isMovies ? (
+        <div className="flex h-20 items-center justify-center border-b px-6 bg-linear-to-r from-primary/10 to-primary/5">
+          <motion.div
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="flex items-center gap-3"
+          >
+            <Image
+              src="/LOGO.jpeg"
+              alt="Saiyan Gods"
+              width={44}
+              height={44}
+              className="rounded-full ring-2 ring-primary/30 object-cover"
+            />
+            <div>
+              <h1 className="text-xl font-bold tracking-tight">Saiyan Gods</h1>
+              <p className="text-xs text-muted-foreground">Server Dashboard</p>
+            </div>
+          </motion.div>
+        </div>
+      ) : (
+        <div className="h-12 w-full shrink-0" />
+      )}
 
       <nav className="flex-1 space-y-2 p-6">
         {navigation.map((item, index) => {
@@ -250,8 +259,12 @@ export function Sidebar({
                 className={cn(
                   "group flex items-center gap-4 rounded-xl px-4 py-3.5 text-sm font-medium transition-all duration-300",
                   isActive
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/50 scale-105"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:scale-105",
+                    ? isMovies 
+                      ? "bg-[#e50914] text-white shadow-lg shadow-[#e50914]/50 scale-105"
+                      : "bg-primary text-primary-foreground shadow-lg shadow-primary/50 scale-105"
+                    : isMovies 
+                      ? "text-gray-400 hover:bg-white/10 hover:text-white hover:scale-105"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground hover:scale-105",
                 )}
               >
                 <motion.div
@@ -264,7 +277,7 @@ export function Sidebar({
                 {isActive && (
                   <motion.div
                     layoutId="activeIndicator"
-                    className="ml-auto h-2 w-2 rounded-full bg-primary-foreground"
+                    className={`ml-auto h-2 w-2 rounded-full ${isMovies ? "bg-white" : "bg-primary-foreground"}`}
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     transition={{ type: "spring", stiffness: 300, damping: 30 }}
@@ -280,7 +293,7 @@ export function Sidebar({
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="border-t p-6"
+        className={`p-6 ${isMovies ? "border-t border-white/5" : "border-t"}`}
       >
         {session?.user ? (
           <div className="relative">
@@ -288,7 +301,11 @@ export function Sidebar({
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setShowDropdown(!showDropdown)}
-              className="w-full flex items-center gap-3 rounded-xl bg-linear-to-r from-primary/10 to-primary/5 px-4 py-3.5 border border-primary/20 hover:border-primary/40 transition-colors"
+              className={`w-full flex items-center gap-3 rounded-xl px-4 py-3.5 border transition-colors ${
+                isMovies 
+                  ? "bg-white/5 border-white/10 hover:border-white/30 text-white" 
+                  : "bg-linear-to-r from-primary/10 to-primary/5 border-primary/20 hover:border-primary/40"
+              }`}
             >
               <div className="relative">
                 <img
@@ -297,7 +314,7 @@ export function Sidebar({
                     `https://api.dicebear.com/7.x/avataaars/svg?seed=${session.user.id}`
                   }
                   alt="Avatar"
-                  className="h-10 w-10 rounded-full ring-2 ring-primary/20"
+                  className={`h-10 w-10 rounded-full ring-2 ${isMovies ? "ring-white/10" : "ring-primary/20"}`}
                 />
                 <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 ring-2 ring-background" />
               </div>
@@ -307,13 +324,13 @@ export function Sidebar({
                     session.user.user_metadata?.username ||
                     "User"}
                 </p>
-                <p className="text-xs text-muted-foreground truncate">
+                <p className={`text-xs truncate ${isMovies ? "text-gray-400" : "text-muted-foreground"}`}>
                   {session.user.email || "Discord User"}
                 </p>
               </div>
               <motion.svg
                 animate={{ rotate: showDropdown ? 180 : 0 }}
-                className="h-4 w-4 text-muted-foreground"
+                className={`h-4 w-4 ${isMovies ? "text-gray-400" : "text-muted-foreground"}`}
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -333,7 +350,9 @@ export function Sidebar({
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="absolute bottom-full left-0 right-0 mb-2 bg-card border rounded-xl shadow-xl overflow-hidden"
+                  className={`absolute bottom-full left-0 right-0 mb-2 border rounded-xl shadow-xl overflow-hidden ${
+                    isMovies ? "bg-[#1f1f1f] border-white/10" : "bg-card border"
+                  }`}
                 >
                   <button
                     onClick={handleSignOut}
