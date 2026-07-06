@@ -465,7 +465,7 @@ function DroppableCategorySection({
           }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
         >
-          <div className="grid gap-1.5 pb-px grid-cols-2">
+          <div className="grid gap-1.5 pb-px grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <AnimatePresence mode="popLayout">
               {(showAll ? sounds : sounds.slice(0, 4)).map((sound, index) => (
                 <motion.div

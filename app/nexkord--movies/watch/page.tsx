@@ -95,23 +95,23 @@ function WatchContent() {
 
   return (
     <div className="fixed inset-0 bg-black z-[100] flex flex-col font-sans">
-      <div className={`p-4 flex justify-between items-center bg-gradient-to-b from-black/90 via-black/60 to-transparent absolute top-0 w-full z-20 transition-opacity duration-300 pt-6 ${iframeLoading || iframeError ? 'opacity-100' : 'opacity-0 hover:opacity-100'}`}>
-        <div className="flex items-center gap-4">
-          <Button 
-            variant="ghost" 
-            className="text-white hover:bg-white/20 rounded-full bg-black/40 backdrop-blur-md border border-white/10 ml-4 flex items-center" 
-            onClick={handleBack}
-          >
-            <ArrowLeft className="w-5 h-5 mr-2" /> Back
-          </Button>
-          
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide px-4">
-            <span className="text-gray-400 font-medium text-sm flex items-center mr-2 uppercase tracking-wider">Servers:</span>
+      <button 
+        onClick={handleBack}
+        className="absolute top-4 left-16 md:left-20 z-[110] p-2 bg-black/50 hover:bg-black/80 rounded-full backdrop-blur-md transition-colors text-white border border-white/10"
+      >
+        <ArrowLeft className="w-5 h-5" />
+      </button>
+
+      <div className={`p-4 flex flex-col sm:flex-row justify-center items-center bg-gradient-to-b from-black/90 via-black/60 to-transparent absolute top-0 w-full z-20 transition-opacity duration-300 pt-16 sm:pt-6 ${iframeLoading || iframeError ? 'opacity-100' : 'opacity-0 hover:opacity-100'}`}>
+        <div className="flex items-center gap-4 w-full sm:w-auto pl-4 sm:pl-24">
+          <div className="flex gap-2 sm:gap-3 overflow-x-auto scrollbar-hide px-2 sm:px-4 w-full">
+            <span className="text-gray-400 font-medium text-xs sm:text-sm flex items-center mr-1 sm:mr-2 uppercase tracking-wider shrink-0">Servers:</span>
             {SERVERS.map((srv, idx) => (
               <Button 
                 key={idx}
                 variant={idx === serverIndex ? "default" : "secondary"}
-                className={`rounded-full px-6 transition-all duration-300 ${idx === serverIndex ? "bg-[#e50914] hover:bg-[#f40612] text-white font-bold shadow-[0_0_15px_rgba(229,9,20,0.5)]" : "bg-black/40 text-gray-300 hover:bg-white/20 hover:text-white backdrop-blur-md border border-white/10"}`}
+                size="sm"
+                className={`rounded-full px-4 sm:px-6 text-xs sm:text-sm transition-all duration-300 shrink-0 ${idx === serverIndex ? "bg-[#e50914] hover:bg-[#f40612] text-white font-bold shadow-[0_0_15px_rgba(229,9,20,0.5)]" : "bg-black/40 text-gray-300 hover:bg-white/20 hover:text-white backdrop-blur-md border border-white/10"}`}
                 onClick={() => changeServer(idx)}
               >
                 {srv.name}

@@ -148,7 +148,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#141414] text-white overflow-x-hidden pb-20 font-sans selection:bg-[#e50914] selection:text-white" onClick={() => setShowHistory(false)}>
       {/* Header */}
-      <header className={`fixed top-0 w-full px-4 md:px-12 py-4 z-50 flex justify-between items-center transition-all duration-500 ${isScrolled || searchOpen ? 'bg-[#141414] shadow-lg' : 'bg-gradient-to-b from-black/90 via-black/50 to-transparent'}`}>
+      <header className={`fixed top-0 w-full pl-16 pr-4 md:pl-20 md:pr-12 py-4 z-50 flex justify-between items-center transition-all duration-500 ${isScrolled || searchOpen ? 'bg-[#141414] shadow-lg' : 'bg-gradient-to-b from-black/90 via-black/50 to-transparent'}`}>
         <div className="flex items-center gap-8 md:gap-12">
           <div className="cursor-pointer" onClick={() => { setSearchQuery(""); setSearchResults([]); }}>
             <AnimatedLogo />
@@ -189,7 +189,7 @@ export default function Home() {
                 onFocus={() => setShowHistory(true)}
                 onClick={(e) => e.stopPropagation()}
                 placeholder="Titles, people, genres" 
-                className={`bg-transparent text-white text-sm outline-none transition-all duration-300 ${searchOpen ? 'w-48 md:w-64 px-2 py-1.5 opacity-100' : 'w-0 px-0 opacity-0'}`}
+                className={`bg-transparent text-white text-sm outline-none transition-all duration-300 ${searchOpen ? 'w-32 sm:w-48 md:w-64 px-2 py-1.5 opacity-100' : 'w-0 px-0 opacity-0'}`}
               />
               {isSearching && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
             </motion.form>
@@ -301,26 +301,26 @@ export default function Home() {
                   transition={{ delay: 0.2, duration: 0.8 }}
                   className="relative z-10 flex flex-col justify-center h-full px-4 md:px-12 w-full md:w-[50%]"
                 >
-                  <h1 className="text-5xl md:text-7xl font-extrabold mb-4 drop-shadow-2xl leading-tight">
+                  <h1 className="text-4xl sm:text-5xl md:text-7xl font-extrabold mb-4 drop-shadow-2xl leading-tight mt-10 md:mt-0">
                     {heroItem.title || heroItem.name}
                   </h1>
-                  <p className="text-lg md:text-xl mb-8 drop-shadow-md line-clamp-3 text-gray-200 font-medium max-w-2xl">
+                  <p className="text-base sm:text-lg md:text-xl mb-6 md:mb-8 drop-shadow-md line-clamp-3 text-gray-200 font-medium max-w-2xl">
                     {heroItem.overview}
                   </p>
-                  <div className="flex gap-4">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 w-full sm:w-auto">
                     <Button 
                       size="lg" 
-                      className="bg-white text-black hover:bg-white/80 font-bold text-lg md:text-xl px-6 md:px-8 py-6 rounded-md transition-transform hover:scale-105"
+                      className="bg-white text-black hover:bg-white/80 font-bold text-base md:text-lg xl:text-xl px-4 sm:px-6 md:px-8 py-5 md:py-6 rounded-md transition-transform hover:scale-105 w-full sm:w-auto justify-center"
                       onClick={() => openPlayer(heroItem, "movie")}
                     >
-                      <Play className="w-6 h-6 md:w-8 md:h-8 mr-2 fill-black" /> Play
+                      <Play className="w-5 h-5 md:w-6 md:h-6 xl:w-8 xl:h-8 mr-2 fill-black" /> Play
                     </Button>
                     <Button 
                       size="lg" 
-                      className="bg-gray-500/70 text-white hover:bg-gray-500/50 font-bold text-lg md:text-xl px-6 md:px-8 py-6 rounded-md transition-transform hover:scale-105"
+                      className="bg-gray-500/70 text-white hover:bg-gray-500/50 font-bold text-base md:text-lg xl:text-xl px-4 sm:px-6 md:px-8 py-5 md:py-6 rounded-md transition-transform hover:scale-105 w-full sm:w-auto justify-center"
                       onClick={(e) => handleToggleMyList(e, heroItem, "movie")}
                     >
-                      {myListIds.has(heroItem.id) ? <Check className="w-6 h-6 md:w-8 md:h-8 mr-2" /> : <Plus className="w-6 h-6 md:w-8 md:h-8 mr-2" />} 
+                      {myListIds.has(heroItem.id) ? <Check className="w-5 h-5 md:w-6 md:h-6 xl:w-8 xl:h-8 mr-2" /> : <Plus className="w-5 h-5 md:w-6 md:h-6 xl:w-8 xl:h-8 mr-2" />} 
                       {myListIds.has(heroItem.id) ? "In My List" : "My List"}
                     </Button>
                   </div>
@@ -363,7 +363,7 @@ export default function Home() {
                             loading="lazy"
                           />
                           {/* Advanced Hover Card Details */}
-                          <div className="absolute top-full left-0 w-full bg-[#181818] p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-b-md shadow-[0_10px_20px_rgba(0,0,0,0.8)] pointer-events-none">
+                          <div className="absolute top-full left-0 w-full bg-[#181818] p-3 opacity-0 md:group-hover:opacity-100 transition-opacity duration-300 rounded-b-md shadow-[0_10px_20px_rgba(0,0,0,0.8)] pointer-events-none hidden md:block">
                             <div className="flex items-center justify-between mb-2">
                               <div className="flex gap-1 pointer-events-auto">
                                 <div 
