@@ -34,11 +34,11 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // If this request is coming from the Discord Activity iframe, instantly redirect to /remani
+  // If this request is coming from the Discord Activity iframe, instantly redirect to /nexkord--movies
   // This prevents Discord users from ever hitting the dashboard or the login page.
-  if (request.nextUrl.searchParams.has("frame_id") && !request.nextUrl.pathname.startsWith("/remani")) {
+  if (request.nextUrl.searchParams.has("frame_id") && !request.nextUrl.pathname.startsWith("/nexkord--movies")) {
     const url = request.nextUrl.clone();
-    url.pathname = "/remani";
+    url.pathname = "/nexkord--movies";
     return NextResponse.redirect(url);
   }
 
@@ -47,7 +47,7 @@ export async function middleware(request: NextRequest) {
     !user &&
     !request.nextUrl.pathname.startsWith("/login") &&
     !request.nextUrl.pathname.startsWith("/auth") &&
-    !request.nextUrl.pathname.startsWith("/remani")
+    !request.nextUrl.pathname.startsWith("/nexkord--movies")
   ) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
@@ -66,7 +66,7 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // Exclude API routes, remani, tmdb proxy paths, and Discord's .proxy path
-    "/((?!_next/static|_next/image|favicon.ico|api/|remani/|tmdb-api/|tmdb-image/|\\.proxy/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // Exclude API routes, nexkord--movies, tmdb proxy paths, and Discord's .proxy path
+    "/((?!_next/static|_next/image|favicon.ico|api/|nexkord--movies/|tmdb-api/|tmdb-image/|\\.proxy/|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };

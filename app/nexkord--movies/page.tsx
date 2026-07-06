@@ -1,19 +1,26 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Play, Search, Loader2, Info, User, ChevronDown, Plus, ThumbsUp } from "lucide-react";
+import { Play, Search, Loader2, Info, User, ChevronDown, Plus, ThumbsUp, Check, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { useDiscordSync } from "@/lib/discord";
 import { fetchTMDB, searchTMDB, CATEGORIES, getTmdbImgUrl } from "@/lib/tmdb";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase";
+import AnimatedLogo from "@/components/AnimatedLogo";
+import { 
+  getRecentlyWatched, addRecentlyWatched, 
+  getMyList, toggleMyList, 
+  getSearchHistory, addSearchHistory, removeSearchHistory 
+} from "@/lib/storage";
 
 export default function Home() {
   const router = useRouter();
   const apiKey = process.env.NEXT_PUBLIC_TMDB_API_KEY || "";
   
   const [heroItem, setHeroItem] = useState<any>(null);
-  const [rowsData, setRowsData] = useState<{ title: string; items: any[]; defaultType: string }[]>([]);
+  const [apiRows, setApiRows] = useState<{ title: string; items: any[]; defaultType: string }[]>([]);
+  const [localRows, setLocalRows] = useState<{ title: string; items: any[]; defaultType: string }[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   const [searchQuery, setSearchQuery] = useState("");
@@ -21,16 +28,25 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [debugLogs, setDebugLogs] = useState<string[]>([]);
-
-  const addDebug = (msg: string) => setDebugLogs(prev => [...prev, msg].slice(-10));
-
-  const { status, remoteState, broadcastState, logAction } = useDiscordSync();
-  const isRemoteUpdate = useRef(false);
+  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [myListIds, setMyListIds] = useState<Set<string>>(new Set());
+  const [searchHistory, setSearchHistoryState] = useState<string[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 0);
     window.addEventListener("scroll", handleScroll);
+    
+    const fetchUser = async () => {
+      const supabase = createClient();
+      const { data } = await supabase.auth.getSession();
+      if (data?.session?.user) {
+        setUserAvatar(data.session.user.user_metadata?.avatar_url || null);
+      }
+    };
+    fetchUser();
+    refreshLocalState();
+
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
@@ -40,26 +56,24 @@ export default function Home() {
     }
   }, [apiKey]);
 
-  useEffect(() => {
-    if (remoteState) {
-      isRemoteUpdate.current = true;
-      if (remoteState.state === "play_media") {
-        router.push(`/remani/watch?t=${remoteState.media.type}&v=${remoteState.media.id}&server=${remoteState.serverIndex || 0}`);
-      }
-      setTimeout(() => {
-        isRemoteUpdate.current = false;
-      }, 500);
-    }
-  }, [remoteState, router]);
+  const refreshLocalState = () => {
+    const recent = getRecentlyWatched();
+    const list = getMyList();
+    const hist = getSearchHistory();
+    
+    setMyListIds(new Set(list.map(i => i.id)));
+    setSearchHistoryState(hist);
+    
+    const lRows = [];
+    if (list.length > 0) lRows.push({ title: "My List", items: list, defaultType: "movie" });
+    if (recent.length > 0) lRows.push({ title: "Continue Watching", items: recent, defaultType: "movie" });
+    setLocalRows(lRows);
+  };
 
   const loadContent = async () => {
     setIsLoading(true);
-    addDebug(`loadContent start. API Key exists: ${!!apiKey}`);
     try {
-      addDebug(`Fetching trending... Path: /trending/all/day`);
       const trending = await fetchTMDB("/trending/all/day", apiKey);
-      addDebug(`Trending result: ${trending ? (trending.results?.length + ' items') : 'NULL/FAILED'}`);
-      
       if (trending?.results?.length > 0) {
         setHeroItem(trending.results[0]);
       }
@@ -75,54 +89,70 @@ export default function Home() {
           });
         }
       }
-      addDebug(`Loaded ${newRows.length} categories`);
-      setRowsData(newRows);
+      setApiRows(newRows);
     } catch (err: any) {
-      addDebug(`FATAL ERROR: ${err.message}`);
+      console.error(err);
     }
     setIsLoading(false);
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!searchQuery.trim()) {
+  const executeSearch = async (query: string) => {
+    if (!query.trim()) {
       setSearchResults([]);
       return;
     }
+    setSearchQuery(query);
+    setShowHistory(false);
     setIsSearching(true);
-    if (logAction) logAction("search", `Searched for: ${searchQuery}`);
+    addSearchHistory(query);
+    refreshLocalState();
+    
     try {
-      const results = await searchTMDB(searchQuery, apiKey);
+      const results = await searchTMDB(query, apiKey);
       if (results?.results) {
         setSearchResults(results.results.filter((item: any) => item.poster_path && (item.media_type === "movie" || item.media_type === "tv")));
       }
     } catch (err: any) {
-      addDebug(`SEARCH ERROR: ${err.message}`);
+      console.error(err);
     }
     setIsSearching(false);
   };
 
-  const openPlayer = (id: string, type: string, srvIdx = 0) => {
-    if (logAction) logAction("play", `Navigating to ${type} with id ${id}`);
-    if (!isRemoteUpdate.current) {
-      broadcastState("play_media", { media: { id, type }, serverIndex: srvIdx });
-    }
-    router.push(`/remani/watch?t=${type}&v=${id}&server=${srvIdx}`);
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeSearch(searchQuery);
   };
 
+  const removeHistoryItem = (e: React.MouseEvent, query: string) => {
+    e.stopPropagation();
+    removeSearchHistory(query);
+    refreshLocalState();
+  };
+
+  const openPlayer = (item: any, defaultType: string, srvIdx = 0) => {
+    const type = item.media_type || defaultType;
+    addRecentlyWatched({ ...item, media_type: type });
+    refreshLocalState();
+    router.push(`/nexkord--movies/watch?t=${type}&v=${item.id}&server=${srvIdx}`);
+  };
+
+  const handleToggleMyList = (e: React.MouseEvent, item: any, defaultType: string) => {
+    e.stopPropagation();
+    const type = item.media_type || defaultType;
+    toggleMyList({ ...item, media_type: type });
+    refreshLocalState();
+  };
+
+  const allRows = [...localRows, ...apiRows];
+
   return (
-    <div className="min-h-screen bg-[#141414] text-white overflow-x-hidden pb-20 font-sans selection:bg-[#e50914] selection:text-white">
+    <div className="min-h-screen bg-[#141414] text-white overflow-x-hidden pb-20 font-sans selection:bg-[#e50914] selection:text-white" onClick={() => setShowHistory(false)}>
       {/* Header */}
-      <header className={`fixed top-0 w-full px-4 md:px-12 py-4 z-50 flex justify-between items-center transition-all duration-500 ${isScrolled ? 'bg-[#141414] shadow-lg' : 'bg-gradient-to-b from-black/90 via-black/50 to-transparent'}`}>
+      <header className={`fixed top-0 w-full px-4 md:px-12 py-4 z-50 flex justify-between items-center transition-all duration-500 ${isScrolled || searchOpen ? 'bg-[#141414] shadow-lg' : 'bg-gradient-to-b from-black/90 via-black/50 to-transparent'}`}>
         <div className="flex items-center gap-8 md:gap-12">
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-[#e50914] text-3xl md:text-4xl font-extrabold uppercase tracking-wider cursor-pointer"
-            onClick={() => { setSearchQuery(""); setSearchResults([]); }}
-          >
-            NexFlix
-          </motion.div>
+          <div className="cursor-pointer" onClick={() => { setSearchQuery(""); setSearchResults([]); }}>
+            <AnimatedLogo />
+          </div>
           <nav className="hidden md:flex gap-6 text-sm font-medium text-gray-300">
             <a href="#" className="text-white font-bold transition-colors">Home</a>
             <a href="#" className="hover:text-gray-400 transition-colors">TV Shows</a>
@@ -133,31 +163,60 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-6">
-          <motion.form 
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            onSubmit={handleSearch} 
-            className={`flex items-center bg-black/60 border transition-all duration-300 ${searchOpen ? 'border-white' : 'border-transparent'}`}
-          >
-            <Button 
-              type="button" 
-              variant="ghost" 
-              size="icon" 
-              className="rounded-none hover:bg-transparent"
-              onClick={() => setSearchOpen(!searchOpen)}
+          <div className="relative">
+            <motion.form 
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              onSubmit={handleSearchSubmit} 
+              className={`flex items-center bg-black/60 border transition-all duration-300 ${searchOpen ? 'border-white' : 'border-transparent'}`}
             >
-              <Search className="w-5 h-5 text-white" />
-            </Button>
-            <input 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Titles, people, genres" 
-              className={`bg-transparent text-white text-sm outline-none transition-all duration-300 ${searchOpen ? 'w-48 md:w-64 px-2 py-1.5 opacity-100' : 'w-0 px-0 opacity-0'}`}
-            />
-            {isSearching && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
-          </motion.form>
-          <div className="w-8 h-8 bg-gray-600 rounded flex items-center justify-center cursor-pointer hover:ring-2 ring-white transition-all">
-            <User className="w-5 h-5" />
+              <Button 
+                type="button" 
+                variant="ghost" 
+                size="icon" 
+                className="rounded-none hover:bg-transparent"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSearchOpen(!searchOpen);
+                  if (!searchOpen) setShowHistory(true);
+                }}
+              >
+                <Search className="w-5 h-5 text-white" />
+              </Button>
+              <input 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onFocus={() => setShowHistory(true)}
+                onClick={(e) => e.stopPropagation()}
+                placeholder="Titles, people, genres" 
+                className={`bg-transparent text-white text-sm outline-none transition-all duration-300 ${searchOpen ? 'w-48 md:w-64 px-2 py-1.5 opacity-100' : 'w-0 px-0 opacity-0'}`}
+              />
+              {isSearching && <Loader2 className="w-4 h-4 animate-spin mr-2" />}
+            </motion.form>
+            
+            {/* Search History Dropdown */}
+            {searchOpen && showHistory && searchHistory.length > 0 && !searchQuery && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-black/90 border border-gray-800 rounded-md shadow-2xl py-2 z-50" onClick={e => e.stopPropagation()}>
+                <div className="px-3 pb-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Recent Searches</div>
+                {searchHistory.map((hist, idx) => (
+                  <div key={idx} className="flex items-center justify-between px-3 py-2 hover:bg-gray-800 cursor-pointer text-sm" onClick={() => executeSearch(hist)}>
+                    <div className="flex items-center gap-3 text-gray-300">
+                      <Search className="w-4 h-4 text-gray-500" />
+                      {hist}
+                    </div>
+                    <X className="w-4 h-4 text-gray-500 hover:text-white" onClick={(e) => removeHistoryItem(e, hist)} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          
+          <div className="w-8 h-8 bg-gray-600 rounded flex items-center justify-center cursor-pointer hover:ring-2 ring-white transition-all overflow-hidden" onClick={() => router.push('/login')}>
+            {userAvatar ? (
+              <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <User className="w-5 h-5" />
+            )}
           </div>
         </div>
       </header>
@@ -194,7 +253,7 @@ export default function Home() {
                   key={item.id}
                   whileHover={{ scale: 1.05, zIndex: 10 }}
                   className="cursor-pointer relative group rounded-md overflow-hidden aspect-[2/3] shadow-lg"
-                  onClick={() => openPlayer(item.id, item.media_type || "movie", 0)}
+                  onClick={() => openPlayer(item, "movie")}
                 >
                   <img 
                     src={getTmdbImgUrl(item.poster_path, "poster")} 
@@ -202,8 +261,14 @@ export default function Home() {
                     className="w-full h-full object-cover"
                     loading="lazy"
                   />
-                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center flex-col gap-2">
                     <Play className="w-12 h-12 text-white fill-white drop-shadow-lg" />
+                    <div 
+                      className="w-10 h-10 bg-black/50 hover:bg-white hover:text-black rounded-full flex items-center justify-center border border-white/50 transition-colors"
+                      onClick={(e) => handleToggleMyList(e, item, "movie")}
+                    >
+                      {myListIds.has(item.id) ? <Check className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                    </div>
                   </div>
                 </motion.div>
               ))}
@@ -246,15 +311,17 @@ export default function Home() {
                     <Button 
                       size="lg" 
                       className="bg-white text-black hover:bg-white/80 font-bold text-lg md:text-xl px-6 md:px-8 py-6 rounded-md transition-transform hover:scale-105"
-                      onClick={() => openPlayer(heroItem.id, heroItem.media_type || "movie", 0)}
+                      onClick={() => openPlayer(heroItem, "movie")}
                     >
                       <Play className="w-6 h-6 md:w-8 md:h-8 mr-2 fill-black" /> Play
                     </Button>
                     <Button 
                       size="lg" 
                       className="bg-gray-500/70 text-white hover:bg-gray-500/50 font-bold text-lg md:text-xl px-6 md:px-8 py-6 rounded-md transition-transform hover:scale-105"
+                      onClick={(e) => handleToggleMyList(e, heroItem, "movie")}
                     >
-                      <Info className="w-6 h-6 md:w-8 md:h-8 mr-2" /> More Info
+                      {myListIds.has(heroItem.id) ? <Check className="w-6 h-6 md:w-8 md:h-8 mr-2" /> : <Plus className="w-6 h-6 md:w-8 md:h-8 mr-2" />} 
+                      {myListIds.has(heroItem.id) ? "In My List" : "My List"}
                     </Button>
                   </div>
                 </motion.div>
@@ -263,7 +330,7 @@ export default function Home() {
 
             {/* Rows */}
             <div className="mt-[-100px] md:mt-[-150px] relative z-20 space-y-8 md:space-y-12 pb-12">
-              {rowsData.map((row, idx) => (
+              {allRows.map((row, idx) => (
                 <motion.div 
                   key={idx} 
                   initial={{ opacity: 0, y: 20 }}
@@ -287,25 +354,31 @@ export default function Home() {
                           whileHover={{ scale: 1.3, zIndex: 50, y: -20 }}
                           transition={{ delay: 0.4, duration: 0.3 }}
                           className="relative w-[120px] md:w-[160px] shrink-0 cursor-pointer rounded-md shadow-xl group"
-                          onClick={() => openPlayer(item.id, item.media_type || row.defaultType, 0)}
+                          onClick={() => openPlayer(item, row.defaultType)}
                         >
                           <img 
-                          src={getTmdbImgUrl(item.poster_path, "poster")} 
-                          alt={item.title || item.name} 
+                            src={getTmdbImgUrl(item.poster_path, "poster")} 
+                            alt={item.title || item.name} 
                             className="w-full h-auto object-cover rounded-md group-hover:rounded-b-none transition-all duration-300"
                             loading="lazy"
                           />
                           {/* Advanced Hover Card Details */}
                           <div className="absolute top-full left-0 w-full bg-[#181818] p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-b-md shadow-[0_10px_20px_rgba(0,0,0,0.8)] pointer-events-none">
                             <div className="flex items-center justify-between mb-2">
-                              <div className="flex gap-1">
-                                <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+                              <div className="flex gap-1 pointer-events-auto">
+                                <div 
+                                  className="w-6 h-6 bg-white hover:bg-gray-300 cursor-pointer rounded-full flex items-center justify-center transition-colors"
+                                  onClick={(e) => { e.stopPropagation(); openPlayer(item, row.defaultType); }}
+                                >
                                   <Play className="w-3 h-3 text-black fill-black ml-0.5" />
                                 </div>
-                                <div className="w-6 h-6 border-2 border-gray-500 rounded-full flex items-center justify-center">
-                                  <Plus className="w-3 h-3 text-white" />
+                                <div 
+                                  className="w-6 h-6 border-2 border-gray-500 hover:border-white cursor-pointer rounded-full flex items-center justify-center transition-colors bg-[#181818]"
+                                  onClick={(e) => handleToggleMyList(e, item, row.defaultType)}
+                                >
+                                  {myListIds.has(item.id) ? <Check className="w-3 h-3 text-white" /> : <Plus className="w-3 h-3 text-white" />}
                                 </div>
-                                <div className="w-6 h-6 border-2 border-gray-500 rounded-full flex items-center justify-center">
+                                <div className="w-6 h-6 border-2 border-gray-500 hover:border-white cursor-pointer rounded-full flex items-center justify-center transition-colors bg-[#181818]">
                                   <ThumbsUp className="w-3 h-3 text-white" />
                                 </div>
                               </div>
@@ -314,7 +387,11 @@ export default function Home() {
                               </div>
                             </div>
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="text-green-500 font-bold text-[10px]">{(item.vote_average * 10).toFixed(0)}% Match</span>
+                              {item.vote_average ? (
+                                <span className="text-green-500 font-bold text-[10px]">{(item.vote_average * 10).toFixed(0)}% Match</span>
+                              ) : (
+                                <span className="text-green-500 font-bold text-[10px]">New</span>
+                              )}
                               <span className="border border-gray-600 px-1 text-[8px] text-gray-300">HD</span>
                             </div>
                             <p className="text-white font-bold text-xs truncate">{item.title || item.name}</p>
@@ -329,14 +406,6 @@ export default function Home() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Debug Panel */}
-      <div className="fixed bottom-0 left-0 bg-black/80 text-green-400 p-2 text-xs font-mono z-[9999] max-w-sm pointer-events-none">
-        <div>Hostname: {typeof window !== 'undefined' ? window.location.hostname : 'ssr'}</div>
-        <div>API Key: {apiKey ? 'SET' : 'MISSING'}</div>
-        <div>Logs:</div>
-        {debugLogs.map((log, i) => <div key={i}>{log}</div>)}
-      </div>
     </div>
   );
 }

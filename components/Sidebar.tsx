@@ -130,14 +130,35 @@ const navigation = [
       </svg>
     ),
   },
+  {
+    name: "Nexkord Movies",
+    href: "/nexkord--movies",
+    icon: (
+      <svg
+        className="h-5 w-5"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeWidth={2}
+          d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"
+        />
+      </svg>
+    ),
+  },
 ];
 
 export function Sidebar({
   mobileOpen = false,
   setMobileOpen,
+  forceOverlay = false,
 }: {
   mobileOpen?: boolean;
   setMobileOpen?: (open: boolean) => void;
+  forceOverlay?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -163,7 +184,7 @@ export function Sidebar({
       className={[
         "flex h-full w-72 shrink-0 flex-col border-r bg-linear-to-b from-card to-card/50 shadow-lg",
         "fixed inset-y-0 left-0 z-50 transition-transform duration-300 ease-in-out",
-        "md:static md:z-auto md:translate-x-0",
+        forceOverlay ? "" : "md:static md:z-auto md:translate-x-0",
         mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full",
       ].join(" ")}
     >

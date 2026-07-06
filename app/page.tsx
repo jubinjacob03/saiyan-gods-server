@@ -101,7 +101,7 @@ export default function Home() {
     // Redirect to the Discord Activity if loaded inside Discord's iframe
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has("frame_id")) {
-      window.location.href = "/remani";
+      window.location.href = "/nexkord--movies";
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
