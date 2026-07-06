@@ -19,60 +19,65 @@ const YTS_TRACKERS = [
 export async function GET(req: NextRequest) {
   try {
     const tmdbId = req.nextUrl.searchParams.get('tmdbId');
+    const type = req.nextUrl.searchParams.get('type') || 'movie';
     if (!tmdbId) {
       return NextResponse.json({ error: 'Missing tmdbId' }, { status: 400 });
     }
 
     // 1. Get IMDB ID from TMDB
     const tmdbRes = await fetch(
-      `https://api.themoviedb.org/3/movie/${tmdbId}/external_ids?api_key=${TMDB_API_KEY}`
+      `https://api.themoviedb.org/3/${type}/${tmdbId}/external_ids?api_key=${TMDB_API_KEY}`
     );
     const tmdbData = await tmdbRes.json();
     const imdbId = tmdbData.imdb_id;
 
     if (!imdbId) {
-      return NextResponse.json({ error: 'Could not find IMDB ID for this movie.' }, { status: 404 });
+      return NextResponse.json({ error: 'Could not find IMDB ID for this media.' }, { status: 404 });
     }
 
-    // 2. Fetch torrents from YTS API
-    // Using a known mirror just in case yts.mx is blocked
-    const ytsUrls = [
-      `https://yts.mx/api/v2/movie_details.json?imdb_id=${imdbId}`,
-      `https://yts.torrentbay.to/api/v2/movie_details.json?imdb_id=${imdbId}`
-    ];
-
-    let ytsData = null;
-    for (const url of ytsUrls) {
-      try {
-        const res = await fetch(url, { next: { revalidate: 3600 } });
-        const data = await res.json();
-        if (data.status === 'ok') {
-          ytsData = data;
-          break;
-        }
-      } catch (e) {
-        console.warn('Failed to fetch from YTS mirror:', url);
-      }
+    // 2. Fetch torrents from Torrentio API (more reliable than YTS directly)
+    let url = `https://torrentio.strem.fun/stream/movie/${imdbId}.json`;
+    if (type === 'tv') {
+      const season = req.nextUrl.searchParams.get('season') || '1';
+      const episode = req.nextUrl.searchParams.get('episode') || '1';
+      url = `https://torrentio.strem.fun/stream/series/${imdbId}:${season}:${episode}.json`;
     }
 
-    if (!ytsData || !ytsData.data || !ytsData.data.movie || !ytsData.data.movie.torrents) {
-      return NextResponse.json({ error: 'No streams found for this movie on YTS.' }, { status: 404 });
+    let torrentioData = null;
+    try {
+      const res = await fetch(url, { next: { revalidate: 3600 } });
+      torrentioData = await res.json();
+    } catch (e) {
+      console.warn('Failed to fetch from Torrentio:', url);
     }
 
-    const torrents = ytsData.data.movie.torrents;
-    // Prefer 1080p, fallback to 720p
-    let bestTorrent = torrents.find((t: any) => t.quality === '1080p');
-    if (!bestTorrent) {
-      bestTorrent = torrents.find((t: any) => t.quality === '720p');
-    }
-    if (!bestTorrent) {
-      bestTorrent = torrents[0];
+    if (!torrentioData || !torrentioData.streams || torrentioData.streams.length === 0) {
+      return NextResponse.json({ error: 'No P2P streams found for this media.' }, { status: 404 });
     }
 
-    // 3. Construct Magnet URI
+    // 3. Filter for MP4/WebM files (WebTorrent browser limit)
+    const validStreams = torrentioData.streams.filter((s: any) => 
+      s.behaviorHints?.filename?.toLowerCase().endsWith('.mp4') ||
+      s.behaviorHints?.filename?.toLowerCase().endsWith('.webm')
+    );
+
+    if (validStreams.length === 0) {
+      return NextResponse.json({ error: 'No browser-compatible streams (MP4) found. Only MKV available.' }, { status: 404 });
+    }
+
+    // Prefer 1080p, fallback to anything else
+    let bestStream = validStreams.find((s: any) => s.name?.includes('1080p') || s.title?.includes('1080p'));
+    if (!bestStream) {
+      bestStream = validStreams.find((s: any) => s.name?.includes('720p') || s.title?.includes('720p'));
+    }
+    if (!bestStream) {
+      bestStream = validStreams[0];
+    }
+
+    // 4. Construct Magnet URI
     // Format: magnet:?xt=urn:btih:[HASH]&dn=[URL_ENCODED_NAME]&tr=[TRACKER_1]&tr=[TRACKER_2]
-    const hash = bestTorrent.hash;
-    const dn = encodeURIComponent(ytsData.data.movie.title_long || 'Movie');
+    const hash = bestStream.infoHash;
+    const dn = encodeURIComponent(bestStream.behaviorHints?.filename || 'Movie');
     
     let magnetUri = `magnet:?xt=urn:btih:${hash}&dn=${dn}`;
     for (const tracker of YTS_TRACKERS) {
@@ -81,8 +86,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       magnet: magnetUri,
-      quality: bestTorrent.quality,
-      size: bestTorrent.size
+      quality: bestStream.name,
+      filename: bestStream.behaviorHints?.filename
     });
 
   } catch (error) {
