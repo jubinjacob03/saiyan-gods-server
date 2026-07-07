@@ -28,7 +28,8 @@ export default function Home() {
   const [isSearching, setIsSearching] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [userAvatar, setUserAvatar] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
+  const [profileDropdownOpen, setProfileDropdownOpen] = useState(false);
   const [myListIds, setMyListIds] = useState<Set<string>>(new Set());
   const [searchHistory, setSearchHistoryState] = useState<string[]>([]);
   const [showHistory, setShowHistory] = useState(false);
@@ -41,7 +42,7 @@ export default function Home() {
       const supabase = createClient();
       const { data } = await supabase.auth.getSession();
       if (data?.session?.user) {
-        setUserAvatar(data.session.user.user_metadata?.avatar_url || null);
+        setUser(data.session.user);
       }
     };
     fetchUser();
@@ -211,11 +212,50 @@ export default function Home() {
             )}
           </div>
           
-          <div className="w-8 h-8 bg-gray-600 rounded flex items-center justify-center cursor-pointer hover:ring-2 ring-white transition-all overflow-hidden" onClick={() => router.push('/login')}>
-            {userAvatar ? (
-              <img src={userAvatar} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <User className="w-5 h-5" />
+          <div 
+            className="relative" 
+            onMouseEnter={() => setProfileDropdownOpen(true)}
+            onMouseLeave={() => setProfileDropdownOpen(false)}
+          >
+            <div 
+              className="w-8 h-8 rounded flex items-center justify-center cursor-pointer hover:ring-2 ring-white transition-all overflow-hidden bg-gray-800" 
+              onClick={() => {
+                if (!user) router.push('/login');
+              }}
+            >
+              {user?.user_metadata?.avatar_url ? (
+                <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <User className="w-5 h-5" />
+              )}
+            </div>
+
+            {/* Profile Dropdown */}
+            {profileDropdownOpen && user && (
+              <div className="absolute top-full right-0 mt-2 w-48 bg-black/90 border border-white/10 rounded-md shadow-2xl py-2 z-50 transition-opacity">
+                <div className="px-4 py-3 border-b border-white/10 flex items-center gap-3">
+                  <div className="w-8 h-8 rounded overflow-hidden bg-gray-800 shrink-0">
+                    {user.user_metadata?.avatar_url ? (
+                      <img src={user.user_metadata.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                    ) : (
+                      <User className="w-full h-full p-1" />
+                    )}
+                  </div>
+                  <div className="overflow-hidden">
+                    <p className="text-sm font-semibold truncate text-white">{user.user_metadata?.full_name || user.email}</p>
+                  </div>
+                </div>
+                <div 
+                  className="px-4 py-3 hover:underline cursor-pointer text-sm text-gray-300"
+                  onClick={async () => {
+                    const supabase = createClient();
+                    await supabase.auth.signOut();
+                    router.push('/login');
+                  }}
+                >
+                  Sign out of Nexkord
+                </div>
+              </div>
             )}
           </div>
         </div>
