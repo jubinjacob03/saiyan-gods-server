@@ -25,21 +25,20 @@ export async function GET(request: NextRequest) {
 
   try {
     if (!q) {
-      const itunesRes = await fetch("https://itunes.apple.com/us/rss/topsongs/limit=24/json");
-      if (itunesRes.ok) {
-        const itunesData = await itunesRes.json();
-        const videos = (itunesData.feed?.entry || []).map((item: any) => {
-          const title = item["im:name"]?.label || "Unknown Title";
-          const artist = item["im:artist"]?.label || "Unknown Artist";
-          return {
-            id: item.id?.attributes?.["im:id"] || Math.random().toString(),
-            title: title,
-            channel: artist,
-            thumbnail: item["im:image"]?.[2]?.label || item["im:image"]?.[0]?.label || "",
-            duration: "", // iTunes RSS does not provide full track duration
-            url: `scsearch:${title} ${artist}`,
-          };
-        });
+      const trendingRes = await fetch(`${MUSIC_BOT_API_URL}/trending`, {
+        headers: { Authorization: `Bearer ${MUSIC_BOT_API_KEY}` },
+        cache: "no-store",
+      });
+      if (trendingRes.ok) {
+        const trendingData = await trendingRes.json();
+        const videos = (trendingData.results || []).map((item: any) => ({
+          id: item.id || "",
+          title: item.title || "Unknown",
+          channel: item.author || "Unknown",
+          thumbnail: item.thumbnail || "",
+          duration: parseDuration(item.duration || 0),
+          url: item.url || "",
+        }));
         return NextResponse.json({ videos });
       }
     }
@@ -74,9 +73,6 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ videos });
   } catch (err) {
     console.error("[music-bot/search]", err);
-    return NextResponse.json(
-      { error: "Music search failed" },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: "Music search failed" }, { status: 500 });
   }
 }
