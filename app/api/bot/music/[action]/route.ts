@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BOT_URL = process.env.BOT_API_URL!;
-const BOT_KEY = process.env.BOT_API_KEY!;
+const BOT_URL = process.env.MUSIC_BOT_API_URL!;
+const BOT_KEY = process.env.MUSIC_BOT_API_KEY!;
 
 // Handles all direct-action music endpoints: /skip /pause /resume /toggle
 // /stop /shuffle /loop /volume /remove /search /queue
 // Note: seek and filter not supported in yt-dlp implementation
 // Static segments (play, control, status) take priority in Next.js App Router.
 
-const getTargetUrl = (action: string, botIndex: string, searchParams?: string) => {
+const getTargetUrl = (
+  action: string,
+  botIndex: string,
+  searchParams?: string,
+) => {
   try {
     const url = new URL(BOT_URL);
     const basePort = parseInt(url.port || "8000", 10);
@@ -30,8 +34,9 @@ export async function POST(
   try {
     const { action } = await params;
     const body = await request.json();
-    const botIndex = request.nextUrl.searchParams.get("botIndex") || body.botIndex || "0";
-    
+    const botIndex =
+      request.nextUrl.searchParams.get("botIndex") || body.botIndex || "0";
+
     const response = await fetch(getTargetUrl(action, botIndex.toString()), {
       method: "POST",
       headers: {
@@ -60,7 +65,7 @@ export async function GET(
     const { action } = await params;
     const botIndex = request.nextUrl.searchParams.get("botIndex") || "0";
     const guildId = request.nextUrl.searchParams.get("guildId") || "";
-    
+
     const response = await fetch(
       getTargetUrl(action, botIndex, `guildId=${guildId}&botIndex=${botIndex}`),
       {
