@@ -10,22 +10,9 @@ const BOT_KEY = process.env.MUSIC_BOT_API_KEY!;
 
 const getTargetUrl = (
   action: string,
-  botIndex: string,
+  _botIndex: string,
   searchParams?: string,
-) => {
-  try {
-    const url = new URL(BOT_URL);
-    const basePort = parseInt(url.port || "8000", 10);
-    const index = parseInt(botIndex || "0", 10);
-    if (!isNaN(basePort) && !isNaN(index)) {
-      url.port = (basePort + index).toString();
-    }
-    const baseUrl = url.toString().replace(/\/$/, "");
-    return `${baseUrl}/${action}${searchParams ? `?${searchParams}` : ""}`;
-  } catch {
-    return `${BOT_URL}/${action}${searchParams ? `?${searchParams}` : ""}`;
-  }
-};
+) => `${BOT_URL}/${action}${searchParams ? `?${searchParams}` : ""}`;
 
 export async function POST(
   request: NextRequest,

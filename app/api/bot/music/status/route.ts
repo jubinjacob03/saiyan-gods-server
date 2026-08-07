@@ -1,26 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-function getBotUrl(botIndex: string) {
-  const base = process.env.MUSIC_BOT_API_URL!;
-  try {
-    const url = new URL(base);
-    const port =
-      parseInt(url.port || "8000", 10) + parseInt(botIndex || "0", 10);
-    url.port = port.toString();
-    return url.toString().replace(/\/$/, "");
-  } catch {
-    return base;
-  }
-}
+const BOT_URL = process.env.MUSIC_BOT_API_URL!;
+const BOT_KEY = process.env.MUSIC_BOT_API_KEY!;
 
 export async function GET(request: NextRequest) {
   try {
     const guildId = request.nextUrl.searchParams.get("guildId");
     const botIndex = request.nextUrl.searchParams.get("botIndex") || "0";
     const response = await fetch(
-      `${getBotUrl(botIndex)}/status?guildId=${guildId}`,
+      `${BOT_URL}/status?guildId=${guildId}&botIndex=${botIndex}`,
       {
-        headers: { Authorization: `Bearer ${process.env.MUSIC_BOT_API_KEY}` },
+        headers: { Authorization: `Bearer ${BOT_KEY}` },
         cache: "no-store",
       },
     );

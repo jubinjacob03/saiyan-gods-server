@@ -1,25 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
-function getBotUrl(botIndex: number) {
-  const base = process.env.MUSIC_BOT_API_URL!;
-  try {
-    const url = new URL(base);
-    url.port = (parseInt(url.port || "8000", 10) + botIndex).toString();
-    return url.toString().replace(/\/$/, "");
-  } catch {
-    return base;
-  }
-}
+const BOT_URL = process.env.MUSIC_BOT_API_URL!;
+const BOT_KEY = process.env.MUSIC_BOT_API_KEY!;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const botIndex = body.botIndex || 0;
-    const response = await fetch(`${getBotUrl(botIndex)}/control`, {
+    const response = await fetch(`${BOT_URL}/control`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${process.env.MUSIC_BOT_API_KEY}`,
+        Authorization: `Bearer ${BOT_KEY}`,
       },
       body: JSON.stringify(body),
     });
