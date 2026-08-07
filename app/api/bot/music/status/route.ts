@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
     const guildId = request.nextUrl.searchParams.get("guildId");
     const botIndex = request.nextUrl.searchParams.get("botIndex") || "0";
     const response = await fetch(
-      `${getBotUrl(botIndex)}/api/music/status?guildId=${guildId}`,
+      `${getBotUrl(botIndex)}/status?guildId=${guildId}`,
       {
         headers: { Authorization: `Bearer ${process.env.MUSIC_BOT_API_KEY}` },
         cache: "no-store",

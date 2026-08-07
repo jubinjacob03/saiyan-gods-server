@@ -21,9 +21,9 @@ const getTargetUrl = (
       url.port = (basePort + index).toString();
     }
     const baseUrl = url.toString().replace(/\/$/, "");
-    return `${baseUrl}/api/music/${action}${searchParams ? `?${searchParams}` : ""}`;
+    return `${baseUrl}/${action}${searchParams ? `?${searchParams}` : ""}`;
   } catch {
-    return `${BOT_URL}/api/music/${action}${searchParams ? `?${searchParams}` : ""}`;
+    return `${BOT_URL}/${action}${searchParams ? `?${searchParams}` : ""}`;
   }
 };
 

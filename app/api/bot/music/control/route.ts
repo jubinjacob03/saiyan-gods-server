@@ -15,7 +15,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const botIndex = body.botIndex || 0;
-    const response = await fetch(`${getBotUrl(botIndex)}/api/music/control`, {
+    const response = await fetch(`${getBotUrl(botIndex)}/control`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
